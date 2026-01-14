@@ -49,7 +49,7 @@ def main():
     print("Drücke Enter für Standardwerte:\n")
 
     excel_path = get_input_with_default("Excel-Datei", "request.xlsx")
-    num_playlists = get_int_with_default("Anzahl Playlists", 3)
+    num_playlists = get_int_with_default("Anzahl Playlists", 4)
     lead_in_seconds = get_int_with_default("Einlaufzeit (Sekunden vor Start)", 8)
     lead_out_seconds = get_int_with_default("Auslaufzeit (Sekunden nach Ende)", 2)
     output_dir = get_input_with_default("Output-Ordner", "output")
