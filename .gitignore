@@ -1,0 +1,30 @@
+# Downloads und Output (große Dateien, generiert)
+downloads/
+output/
+
+# Excel-Dateien (persönliche Daten)
+*.xlsx
+~$*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Temporäre Dateien
+*.tmp
+*.temp
