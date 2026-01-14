@@ -2,7 +2,6 @@
 
 from openpyxl import load_workbook
 from dataclasses import dataclass
-from typing import Optional
 import re
 
 
@@ -14,8 +13,8 @@ class Song:
     title: str
     description: str  # Songabschnitt, kann "Dancebreak" enthalten
     dancer_name: str
-    start_time: str  # Format: "MM:SS" oder "M:SS"
-    end_time: str    # Format: "MM:SS" oder "M:SS"
+    start_seconds: float
+    end_seconds: float
     row_number: int  # Zeilennummer in der Excel für Fehlermeldungen
 
     @property
@@ -31,24 +30,12 @@ class Song:
         return f"{safe_artist} - {safe_title}.mp3"
 
     def get_start_seconds(self) -> float:
-        """Konvertiert Start-Timestamp zu Sekunden."""
-        return self._parse_timestamp(self.start_time)
+        """Gibt Start-Zeit in Sekunden zurück."""
+        return self.start_seconds
 
     def get_end_seconds(self) -> float:
-        """Konvertiert End-Timestamp zu Sekunden."""
-        return self._parse_timestamp(self.end_time)
-
-    def _parse_timestamp(self, timestamp: str) -> float:
-        """Parst einen Timestamp (MM:SS oder M:SS) zu Sekunden."""
-        parts = timestamp.strip().split(":")
-        if len(parts) == 2:
-            minutes, seconds = parts
-            return int(minutes) * 60 + float(seconds)
-        elif len(parts) == 3:
-            hours, minutes, seconds = parts
-            return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
-        else:
-            raise ValueError(f"Ungültiges Timestamp-Format: {timestamp}")
+        """Gibt End-Zeit in Sekunden zurück."""
+        return self.end_seconds
 
 
 def read_excel(filepath: str) -> list[Song]:
@@ -58,13 +45,15 @@ def read_excel(filepath: str) -> list[Song]:
     Erwartete Spalten (Reihenfolge):
     1. YouTube-URL
     2. Artist
-    3. Titel
-    4. Songabschnitt/Description
-    5. Tänzer-Name
-    6. Start-Timestamp
-    7. End-Timestamp
+    3. Title
+    4. Description
+    5. Requester/Dancer
+    6. Start: Minute
+    7. Start: Second
+    8. End: Minute
+    9. End: Seconds
     """
-    wb = load_workbook(filepath, read_only=True)
+    wb = load_workbook(filepath, read_only=True, data_only=True)
     ws = wb.active
 
     songs = []
@@ -75,14 +64,31 @@ def read_excel(filepath: str) -> list[Song]:
         if not row or not any(row):
             continue
 
-        # Extrahiere Werte, ersetze None mit leerem String
-        values = [str(cell).strip() if cell is not None else "" for cell in row[:7]]
+        # Extrahiere Werte (mindestens 9 Spalten erwartet)
+        values = list(row[:9])
 
         # Stelle sicher, dass wir genug Spalten haben
-        while len(values) < 7:
-            values.append("")
+        while len(values) < 9:
+            values.append(None)
 
-        youtube_url, artist, title, description, dancer_name, start_time, end_time = values
+        youtube_url = str(values[0]).strip() if values[0] else ""
+        artist = str(values[1]).strip() if values[1] else ""
+        title = str(values[2]).strip() if values[2] else ""
+        description = str(values[3]).strip() if values[3] else ""
+        dancer_name = str(values[4]).strip() if values[4] else ""
+
+        # Timestamps: Minute und Sekunde getrennt
+        try:
+            start_min = int(values[5]) if values[5] is not None else 0
+            start_sec = int(values[6]) if values[6] is not None else 0
+            end_min = int(values[7]) if values[7] is not None else 0
+            end_sec = int(values[8]) if values[8] is not None else 0
+        except (ValueError, TypeError):
+            print(f"Warnung: Ungültige Timestamps in Zeile {row_num}, überspringe...")
+            continue
+
+        start_seconds = start_min * 60 + start_sec
+        end_seconds = end_min * 60 + end_sec
 
         # Überspringe Zeilen ohne URL
         if not youtube_url:
@@ -94,8 +100,8 @@ def read_excel(filepath: str) -> list[Song]:
             title=title,
             description=description,
             dancer_name=dancer_name,
-            start_time=start_time,
-            end_time=end_time,
+            start_seconds=start_seconds,
+            end_seconds=end_seconds,
             row_number=row_num
         )
         songs.append(song)
@@ -112,17 +118,14 @@ def validate_timestamps(songs: list[Song]) -> list[str]:
     errors = []
 
     for song in songs:
-        try:
-            start = song.get_start_seconds()
-            end = song.get_end_seconds()
+        start = song.get_start_seconds()
+        end = song.get_end_seconds()
 
-            if start >= end:
-                errors.append(
-                    f"Zeile {song.row_number}: Start-Zeit ({song.start_time}) "
-                    f"muss vor End-Zeit ({song.end_time}) liegen - "
-                    f"{song.artist} - {song.title}"
-                )
-        except ValueError as e:
-            errors.append(f"Zeile {song.row_number}: {str(e)} - {song.artist} - {song.title}")
+        if start >= end:
+            errors.append(
+                f"Zeile {song.row_number}: Start-Zeit ({start}s) "
+                f"muss vor End-Zeit ({end}s) liegen - "
+                f"{song.artist} - {song.title}"
+            )
 
     return errors

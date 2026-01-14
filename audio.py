@@ -17,19 +17,59 @@ def cut_audio(audio: AudioSegment, start_seconds: float, end_seconds: float) -> 
     return audio[start_ms:end_ms]
 
 
-def cut_song(song: Song, audio_path: str) -> AudioSegment:
-    """Schneidet einen Song auf die in der Excel definierten Timestamps."""
+def normalize_audio(audio: AudioSegment, target_dBFS: float = -14.0) -> AudioSegment:
+    """
+    Normalisiert die Lautstärke eines Audio-Segments.
+
+    Args:
+        audio: Audio-Segment
+        target_dBFS: Ziel-Lautstärke in dBFS (Standard: -14 dBFS)
+    """
+    change_in_dBFS = target_dBFS - audio.dBFS
+    return audio.apply_gain(change_in_dBFS)
+
+
+def cut_song(song: Song, audio_path: str, lead_in: float = 0, lead_out: float = 0,
+             fade_in_ms: int = 2000, fade_out_ms: int = 2000) -> AudioSegment:
+    """
+    Schneidet einen Song auf die in der Excel definierten Timestamps.
+
+    Args:
+        song: Song-Objekt mit Timestamps
+        audio_path: Pfad zur Audio-Datei
+        lead_in: Sekunden vor dem Start-Timestamp (Einlaufzeit)
+        lead_out: Sekunden nach dem End-Timestamp (Auslaufzeit)
+        fade_in_ms: Fade-In Dauer in Millisekunden
+        fade_out_ms: Fade-Out Dauer in Millisekunden
+    """
     audio = load_audio(audio_path)
-    start = song.get_start_seconds()
-    end = song.get_end_seconds()
-    return cut_audio(audio, start, end)
+
+    # Start und Ende mit Einlauf-/Auslaufzeit berechnen
+    start = max(0, song.get_start_seconds() - lead_in)
+    end = min(len(audio) / 1000, song.get_end_seconds() + lead_out)
+
+    # Audio schneiden
+    cut = cut_audio(audio, start, end)
+
+    # Lautstärke normalisieren
+    cut = normalize_audio(cut)
+
+    # Fade-In und Fade-Out anwenden (innerhalb der Song-Länge)
+    if len(cut) > fade_in_ms:
+        cut = cut.fade_in(fade_in_ms)
+    if len(cut) > fade_out_ms:
+        cut = cut.fade_out(fade_out_ms)
+
+    return cut
 
 
 def build_playlist_audio(
     songs: list[Song],
-    song_paths: dict[Song, str],
+    song_paths: dict[str, str],
     three_mp3_path: str,
     dancebreak_mp3_path: str,
+    lead_in_seconds: float = 8,
+    lead_out_seconds: float = 2,
     progress_callback=None
 ) -> tuple[AudioSegment, list[dict]]:
     """
@@ -54,7 +94,7 @@ def build_playlist_audio(
         if progress_callback:
             progress_callback(i + 1, len(songs), f"Verarbeite: {song.artist} - {song.title}")
 
-        audio_path = song_paths.get(song)
+        audio_path = song_paths.get(song.filename)
         if not audio_path or not os.path.exists(audio_path):
             print(f"Warnung: Audio nicht gefunden für {song.artist} - {song.title}")
             continue
@@ -69,14 +109,19 @@ def build_playlist_audio(
         # Timestamp für Chapter speichern (nach three.mp3)
         chapter_timestamp = len(playlist)
 
-        # Song schneiden und einfügen
-        cut_song_audio = cut_song(song, audio_path)
+        # Song schneiden und einfügen (mit Einlauf-/Auslaufzeit und Fade)
+        cut_song_audio = cut_song(
+            song, audio_path,
+            lead_in=lead_in_seconds,
+            lead_out=lead_out_seconds
+        )
         playlist += cut_song_audio
 
         chapters.append({
             'timestamp_ms': chapter_timestamp,
             'artist': song.artist,
             'title': song.title,
+            'description': song.description,
             'dancer': song.dancer_name
         })
 
@@ -106,11 +151,15 @@ def generate_chapters_text(all_playlists_chapters: list[tuple[int, list[dict]]])
     lines = []
 
     for playlist_num, chapters in all_playlists_chapters:
-        lines.append(f"=== Playlist {playlist_num} ===")
+        lines.append(f"=== PLAYLIST {playlist_num} ===")
 
         for chapter in chapters:
             timestamp = format_timestamp(chapter['timestamp_ms'])
-            lines.append(f"{timestamp} {chapter['artist']} - {chapter['title']}")
+            artist = chapter['artist'].upper()
+            title = chapter['title'].upper()
+            description = chapter.get('description', '')
+            dancer = chapter.get('dancer', '')
+            lines.append(f"{timestamp} {artist} - {title} ({description}, {dancer})")
 
         lines.append("")  # Leerzeile zwischen Playlists
 

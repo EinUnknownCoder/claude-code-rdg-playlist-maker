@@ -1,6 +1,12 @@
 """Video-Erstellung Modul für RDG Playlist Maker."""
 
-from moviepy.editor import ImageClip, AudioFileClip
+import subprocess
+import shutil
+
+
+def check_ffmpeg() -> bool:
+    """Prüft ob ffmpeg installiert ist."""
+    return shutil.which('ffmpeg') is not None
 
 
 def create_video(
@@ -12,31 +18,48 @@ def create_video(
     """
     Erstellt ein MP4-Video mit einem Standbild und Audio.
 
+    Verwendet ffmpeg direkt für maximale Kompatibilität.
+
     Args:
         audio_path: Pfad zur MP3-Datei
         image_path: Pfad zum Standbild (JPG)
         output_path: Pfad für das Output-Video (MP4)
     """
-    # Audio laden
-    audio = AudioFileClip(audio_path)
+    if not check_ffmpeg():
+        raise RuntimeError("ffmpeg ist nicht installiert. Bitte installiere es mit 'brew install ffmpeg'")
 
-    # Bild laden und auf Audio-Länge setzen
-    image = ImageClip(image_path)
-    image = image.set_duration(audio.duration)
-    image = image.set_audio(audio)
+    # ffmpeg-Befehl: Standbild + Audio zu Video
+    # -loop 1: Bild wiederholen
+    # -i: Input-Dateien
+    # -c:v libx264: Video-Codec
+    # -tune stillimage: Optimiert für Standbilder
+    # -c:a aac: Audio-Codec
+    # -b:a 192k: Audio-Bitrate
+    # -pix_fmt yuv420p: Pixel-Format für Kompatibilität
+    # -shortest: Stoppe wenn kürzester Stream endet (Audio)
+    cmd = [
+        'ffmpeg',
+        '-y',  # Überschreibe ohne Nachfrage
+        '-loop', '1',
+        '-i', image_path,
+        '-i', audio_path,
+        '-c:v', 'libx264',
+        '-tune', 'stillimage',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-pix_fmt', 'yuv420p',
+        '-shortest',
+        output_path
+    ]
 
-    # Video exportieren
-    image.write_videofile(
-        output_path,
-        fps=1,  # Niedriger FPS da statisches Bild
-        codec='libx264',
-        audio_codec='aac',
-        logger=None if not progress_callback else 'bar'
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True
     )
 
-    # Ressourcen freigeben
-    audio.close()
-    image.close()
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg Fehler: {result.stderr}")
 
 
 def create_all_videos(
