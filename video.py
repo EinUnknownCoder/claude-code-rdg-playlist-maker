@@ -43,6 +43,7 @@ def create_video(
         '-loop', '1',
         '-i', image_path,
         '-i', audio_path,
+        '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',  # Gerade Dimensionen für libx264
         '-c:v', 'libx264',
         '-tune', 'stillimage',
         '-c:a', 'aac',
