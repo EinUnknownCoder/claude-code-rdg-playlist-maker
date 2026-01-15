@@ -99,6 +99,7 @@ Das Programm fragt nach folgenden Eingaben (Enter für Standardwert):
 | Output-Ordner | `output` | Wo die Dateien gespeichert werden |
 | Assets-Ordner | `assets` | Wo die Assets liegen |
 | URL-Validierung überspringen | `N` (Nein) | `J` = Überspringen, `N` = Normale Validierung |
+| Browser für Cookies | `chrome` | Browser für Cookie-Import (`chrome`, `firefox`, `safari`, oder leer) |
 
 ## Ablauf
 
@@ -154,10 +155,22 @@ Die `chapters.txt` enthält YouTube-Chapters für alle Playlists:
 
 ## Troubleshooting
 
+### YouTube Bot-Detection ("Sign in to confirm you're not a bot")
+YouTube blockiert manchmal yt-dlp Anfragen als Bot-Schutz. **Lösung**:
+
+Das Programm verwendet **automatisch Cookies aus deinem Browser** (Standard: Chrome).
+- Stelle sicher, dass du in YouTube im Browser eingeloggt bist
+- Beim Programmstart wird nach dem Browser gefragt (chrome/firefox/safari)
+- Die Cookies werden automatisch importiert
+
+**Unterstützte Browser**: Chrome, Firefox, Safari, Edge, Opera, Brave
+
 ### Downloads schlagen fehl ("ERROR: The downloaded file is empty")
 Das Programm hat automatische Retry-Mechanismen (10 Versuche) und Sleep-Intervals (1-3s zwischen Downloads) um Rate Limiting zu vermeiden. Falls Downloads trotzdem fehlschlagen:
 
-1. **Internet-Verbindung prüfen**
-2. **YouTube Rate Limiting**: Warte 5-10 Minuten und versuche es erneut
-3. **Weniger Songs gleichzeitig**: Teile große Excel-Dateien in kleinere auf
-4. **yt-dlp aktualisieren**: `pip install --upgrade yt-dlp` im venv
+1. **Browser-Cookies verwenden**: Stelle sicher, dass ein Browser ausgewählt ist (Standard: chrome)
+2. **Im Browser einloggen**: Logge dich in YouTube im Browser ein
+3. **Internet-Verbindung prüfen**
+4. **YouTube Rate Limiting**: Warte 5-10 Minuten und versuche es erneut
+5. **Weniger Songs gleichzeitig**: Teile große Excel-Dateien in kleinere auf
+6. **yt-dlp aktualisieren**: `pip install --upgrade yt-dlp` im venv

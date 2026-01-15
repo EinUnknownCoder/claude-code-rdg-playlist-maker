@@ -38,6 +38,7 @@ Erwartete Spalten (Reihenfolge):
 ## Audio-Verarbeitung
 - **Download-Qualität**: 128 kbps MP3 (ausreichend für normalisiertes Audio)
 - **Download-Stabilität**:
+  - Browser-Cookie-Import (Standard: Chrome) gegen YouTube Bot-Detection
   - 10 Retries bei Fehlern (normal + fragments)
   - 1-3 Sekunden Sleep zwischen Downloads (Rate Limiting vermeiden)
   - User-Agent gesetzt für bessere Kompatibilität
@@ -78,6 +79,7 @@ Erwartete Spalten (Reihenfolge):
   - Auslauf: 2s
   - Verteilungsmodus: 1 (Fair)
   - Skip Validation: N (Nein)
+  - Browser: chrome (für Cookie-Import)
 
 ## Chapters-Format
 ```
@@ -140,14 +142,23 @@ python main.py
 
 ## Troubleshooting
 
+### "Sign in to confirm you're not a bot"
+YouTube Bot-Detection blockiert yt-dlp Anfragen. **Lösung**:
+- Das Programm verwendet automatisch Browser-Cookies (Standard: Chrome)
+- Stelle sicher, dass du in YouTube im Browser eingeloggt bist
+- Beim Programmstart Browser auswählen (chrome/firefox/safari)
+- Unterstützte Browser: Chrome, Firefox, Safari, Edge, Opera, Brave
+
 ### "ERROR: The downloaded file is empty"
 Dieses Problem wurde mit v2 behoben durch:
+- Browser-Cookie-Import (Standard: Chrome)
 - Retry-Mechanismus (10 Versuche)
 - Sleep intervals zwischen Downloads (1-3s)
 - User-Agent Header
 - Fragment-Retry-Logik
 
 Falls es weiterhin auftritt:
-1. Prüfe Internet-Verbindung
-2. Warte ein paar Minuten (YouTube Rate Limiting)
-3. Versuche es mit weniger Songs gleichzeitig
+1. Browser-Cookies verwenden (im Browser bei YouTube einloggen)
+2. Prüfe Internet-Verbindung
+3. Warte ein paar Minuten (YouTube Rate Limiting)
+4. Versuche es mit weniger Songs gleichzeitig

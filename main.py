@@ -71,6 +71,20 @@ def main():
     if skip_validation:
         print("⚠ URL-Validierung wird übersprungen - nur Download-Check")
 
+    # Browser für Cookie-Import (gegen YouTube Bot-Detection)
+    print("\nBrowser für Cookie-Import (gegen YouTube Bot-Detection):")
+    print("  chrome = Google Chrome/Chromium")
+    print("  firefox = Mozilla Firefox")
+    print("  safari = Apple Safari")
+    print("  [leer] = Keine Cookies verwenden")
+    browser_input = get_input_with_default("Browser", "chrome").strip().lower()
+    browser = browser_input if browser_input in ['chrome', 'firefox', 'safari', 'edge', 'opera', 'brave'] else None
+
+    if browser:
+        print(f"✓ Verwende Cookies aus {browser.title()}")
+    else:
+        print("⚠ Keine Browser-Cookies - kann bei YouTube Bot-Detection fehlschlagen")
+
     # Pfade zu Assets
     three_mp3 = os.path.join(assets_dir, "three.mp3")
     dancebreak_mp3 = os.path.join(assets_dir, "dancebreak.mp3")
@@ -125,7 +139,7 @@ def main():
 
         # URL validieren (nur wenn nicht übersprungen)
         if not skip_validation:
-            result = validate_url(song)
+            result = validate_url(song, browser=browser)
 
             if not result.is_valid:
                 print(f"  ✗ {result.error_message}")
@@ -137,7 +151,7 @@ def main():
         # Download versuchen
         print(f"  ⬇ Lade herunter...")
         try:
-            download_song(song)
+            download_song(song, browser=browser)
             print(f"  ✓ Heruntergeladen")
             valid_songs.append(song)
         except Exception as e:

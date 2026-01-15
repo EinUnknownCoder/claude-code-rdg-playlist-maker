@@ -15,8 +15,14 @@ class ValidationResult:
     video_title: Optional[str] = None
 
 
-def get_video_info(url: str) -> dict:
-    """Holt Video-Metadaten von YouTube ohne Download."""
+def get_video_info(url: str, browser: str = None) -> dict:
+    """
+    Holt Video-Metadaten von YouTube ohne Download.
+
+    Args:
+        url: YouTube URL
+        browser: Optional Browser für Cookie-Import (z.B. "chrome", "firefox", "safari")
+    """
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -24,21 +30,29 @@ def get_video_info(url: str) -> dict:
         'skip_download': True,
     }
 
+    # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)
+    if browser:
+        ydl_opts['cookiesfrombrowser'] = (browser,)
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return info
 
 
-def validate_url(song: Song) -> ValidationResult:
+def validate_url(song: Song, browser: str = None) -> ValidationResult:
     """
     Validiert eine YouTube-URL für einen Song.
+
+    Args:
+        song: Song-Objekt mit URL und Metadaten
+        browser: Optional Browser für Cookie-Import (z.B. "chrome", "firefox", "safari")
 
     Prüft:
     1. Ob Artist und Titel im Video-Titel vorkommen
     2. Ob es ein Lyric Video ist (nicht Official MV oder Dance Practice)
     """
     try:
-        info = get_video_info(song.youtube_url)
+        info = get_video_info(song.youtube_url, browser=browser)
         video_title = info.get('title', '').lower()
         video_description = info.get('description', '').lower()
 

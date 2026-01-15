@@ -15,9 +15,15 @@ def is_downloaded(song: Song, downloads_dir: str = "downloads") -> bool:
     return os.path.exists(get_download_path(song, downloads_dir))
 
 
-def download_song(song: Song, downloads_dir: str = "downloads", progress_callback=None) -> str:
+def download_song(song: Song, downloads_dir: str = "downloads", progress_callback=None, browser: str = None) -> str:
     """
     Lädt einen Song von YouTube herunter.
+
+    Args:
+        song: Song-Objekt mit URL und Metadaten
+        downloads_dir: Zielverzeichnis für Downloads
+        progress_callback: Optional callback für Progress-Updates
+        browser: Optional Browser für Cookie-Import (z.B. "chrome", "firefox", "safari")
 
     Returns:
         Pfad zur heruntergeladenen MP3-Datei
@@ -60,6 +66,10 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         'source_address': '0.0.0.0',  # Bind to all interfaces
     }
 
+    # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)
+    if browser:
+        ydl_opts['cookiesfrombrowser'] = (browser,)
+
     if progress_callback:
         def progress_hook(d):
             if d['status'] == 'downloading':
@@ -80,7 +90,7 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
 
 
 def download_all_songs(songs: list[Song], downloads_dir: str = "downloads",
-                       progress_callback=None) -> dict[Song, str]:
+                       progress_callback=None, browser: str = None) -> dict[Song, str]:
     """
     Lädt alle Songs herunter.
 
@@ -98,7 +108,7 @@ def download_all_songs(songs: list[Song], downloads_dir: str = "downloads",
             )
 
         try:
-            path = download_song(song, downloads_dir)
+            path = download_song(song, downloads_dir, browser=browser)
             results[song] = path
         except Exception as e:
             print(f"Fehler beim Download von {song.artist} - {song.title}: {e}")
