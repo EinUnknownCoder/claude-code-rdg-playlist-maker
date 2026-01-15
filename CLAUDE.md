@@ -135,8 +135,8 @@ python main.py
 - **Chapters-Format ändern**: `audio.py` → `generate_chapters_text()` anpassen
 
 ## Bekannte Einschränkungen
-- Python 3.9 zeigt Deprecation-Warnungen von yt-dlp (funktioniert aber)
 - tkinter GUI funktioniert nicht auf allen macOS-Versionen (daher CLI)
+- Python 3.9 wird nicht mehr unterstützt (yt-dlp Deprecation-Warnungen) → Bitte Python 3.11+ verwenden
 
 ## Troubleshooting
 

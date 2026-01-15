@@ -19,7 +19,7 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
 
 ## Voraussetzungen
 
-- Python 3.9+ (empfohlen: 3.10+)
+- Python 3.11+ (empfohlen: 3.11 oder höher)
 - ffmpeg
 
 ### ffmpeg installieren (macOS)
@@ -38,7 +38,8 @@ cd claude-code-rdg-playlist-maker
 
 2. Virtuelle Umgebung erstellen und aktivieren:
 ```bash
-python3 -m venv venv
+# macOS/Linux (mit Python 3.11)
+python3.11 -m venv venv
 source venv/bin/activate
 ```
 
