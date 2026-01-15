@@ -25,9 +25,10 @@ class Song:
     @property
     def filename(self) -> str:
         """Generiert einen sicheren Dateinamen für den Song."""
-        safe_artist = re.sub(r'[^\w\s-]', '', self.artist).strip()
-        safe_title = re.sub(r'[^\w\s-]', '', self.title).strip()
-        return f"{safe_artist} - {safe_title}.mp3"
+        # Entferne alle Sonderzeichen UND Leerzeichen, konvertiere zu lowercase
+        safe_artist = re.sub(r'[^\w]', '', self.artist).lower()
+        safe_title = re.sub(r'[^\w]', '', self.title).lower()
+        return f"{safe_artist}-{safe_title}.mp3"
 
     def get_start_seconds(self) -> float:
         """Gibt Start-Zeit in Sekunden zurück."""
@@ -72,6 +73,8 @@ def read_excel(filepath: str) -> list[Song]:
             values.append(None)
 
         youtube_url = str(values[0]).strip() if values[0] else ""
+        # Entferne Playlist-Parameter aus URL
+        youtube_url = re.sub(r'&list=[^&]*', '', youtube_url)
         artist = str(values[1]).strip() if values[1] else ""
         title = str(values[2]).strip() if values[2] else ""
         description = str(values[3]).strip() if values[3] else ""

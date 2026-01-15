@@ -8,7 +8,7 @@ from validate import validate_url, format_validation_errors, ValidationResult
 from download import download_song, is_downloaded, get_download_path
 from audio import build_playlist_audio, export_audio, generate_chapters_text
 from video import create_video, check_ffmpeg
-from distribute import distribute_songs_fairly
+from distribute import distribute_songs_fairly, distribute_songs_sequentially
 
 
 def print_header():
@@ -52,8 +52,24 @@ def main():
     num_playlists = get_int_with_default("Anzahl Playlists", 4)
     lead_in_seconds = get_int_with_default("Einlaufzeit (Sekunden vor Start)", 8)
     lead_out_seconds = get_int_with_default("Auslaufzeit (Sekunden nach Ende)", 2)
+
+    # Verteilungsmodus wählen
+    print("\nVerteilungsmodus:")
+    print("  1 = Fair (Artist-balanciert, gemischt)")
+    print("  2 = Sequential (Excel-Reihenfolge beibehalten)")
+    distribution_mode = get_int_with_default("Modus", 1)
+
     output_dir = get_input_with_default("Output-Ordner", "output")
     assets_dir = get_input_with_default("Assets-Ordner", "assets")
+
+    # URL-Validierung überspringen?
+    skip_validation_input = get_input_with_default(
+        "URL-Validierung überspringen? (J/N)", "N"
+    ).strip().upper()
+    skip_validation = skip_validation_input == "J"
+
+    if skip_validation:
+        print("⚠ URL-Validierung wird übersprungen - nur Download-Check")
 
     # Pfade zu Assets
     three_mp3 = os.path.join(assets_dir, "three.mp3")
@@ -101,48 +117,67 @@ def main():
     for i, song in enumerate(songs, 1):
         print(f"[{i}/{len(songs)}] {song.artist} - {song.title}")
 
-        result = validate_url(song)
-
-        if result.is_valid:
-            print(f"  ✓ URL gültig")
-
-            # Sofort herunterladen wenn gültig
-            if not is_downloaded(song):
-                print(f"  ⬇ Lade herunter...")
-                try:
-                    download_song(song)
-                    print(f"  ✓ Heruntergeladen")
-                except Exception as e:
-                    print(f"  ✗ Download-Fehler: {e}")
-                    invalid_results.append(ValidationResult(
-                        song=song,
-                        is_valid=False,
-                        error_message=f"Download fehlgeschlagen: {e}"
-                    ))
-                    continue
-            else:
-                print(f"  ✓ Bereits vorhanden")
-
+        # ZUERST prüfen ob bereits vorhanden
+        if is_downloaded(song):
+            print(f"  ✓ Bereits vorhanden")
             valid_songs.append(song)
-        else:
-            print(f"  ✗ {result.error_message}")
-            invalid_results.append(result)
+            continue
+
+        # URL validieren (nur wenn nicht übersprungen)
+        if not skip_validation:
+            result = validate_url(song)
+
+            if not result.is_valid:
+                print(f"  ✗ {result.error_message}")
+                invalid_results.append(result)
+                continue
+            else:
+                print(f"  ✓ URL gültig")
+
+        # Download versuchen
+        print(f"  ⬇ Lade herunter...")
+        try:
+            download_song(song)
+            print(f"  ✓ Heruntergeladen")
+            valid_songs.append(song)
+        except Exception as e:
+            print(f"  ✗ Download-Fehler: {e}")
+            invalid_results.append(ValidationResult(
+                song=song,
+                is_valid=False,
+                error_message=f"Download fehlgeschlagen: {e}"
+            ))
 
     # Wenn Fehler gefunden, stoppen
     if invalid_results:
         print("\n" + "=" * 50)
         print("STOPP: Fehlerhafte URLs gefunden!")
         print("=" * 50)
-        print(format_validation_errors(invalid_results))
+        error_message = format_validation_errors(invalid_results)
+        print(error_message)
+
+        # Fehlerliste als Textdatei exportieren
+        os.makedirs(output_dir, exist_ok=True)
+        errors_path = os.path.join(output_dir, "errors.txt")
+        with open(errors_path, 'w', encoding='utf-8') as f:
+            f.write("RDG Playlist Maker - Fehlerliste\n")
+            f.write("=" * 50 + "\n\n")
+            f.write(error_message)
+        print(f"\nFehlerliste gespeichert: {errors_path}")
+
         print("\nBitte korrigiere die Excel-Datei und starte erneut.")
         print("Bereits heruntergeladene Songs bleiben gecacht.")
         sys.exit(1)
 
     # 3. Songs auf Playlists verteilen
     print("\n" + "-" * 50)
-    print(f"Verteile {len(valid_songs)} Songs auf {num_playlists} Playlists...\n")
 
-    playlists = distribute_songs_fairly(valid_songs, num_playlists)
+    if distribution_mode == 2:
+        print(f"Verteile {len(valid_songs)} Songs sequentiell auf {num_playlists} Playlists...\n")
+        playlists = distribute_songs_sequentially(valid_songs, num_playlists)
+    else:
+        print(f"Verteile {len(valid_songs)} Songs fair auf {num_playlists} Playlists...\n")
+        playlists = distribute_songs_fairly(valid_songs, num_playlists)
 
     for i, playlist in enumerate(playlists, 1):
         artists = set(s.artist for s in playlist)

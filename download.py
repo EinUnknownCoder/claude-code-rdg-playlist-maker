@@ -38,7 +38,7 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '192',
+            'preferredquality': '128',
         }],
         'outtmpl': temp_path,
         'quiet': True,

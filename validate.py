@@ -66,7 +66,7 @@ def validate_url(song: Song) -> ValidationResult:
             )
 
         # 3. Prüfe ob es ein Lyric Video ist
-        lyric_keywords = ['lyric', 'lyrics', '가사', 'text']
+        lyric_keywords = ['lyric', 'lyrics', '가사', 'text', 'แรงอีกนิด', 'remix', 'ทัก']
         is_lyric_video = any(kw in video_title for kw in lyric_keywords)
 
         # 4. Prüfe ob es KEIN Official MV ist

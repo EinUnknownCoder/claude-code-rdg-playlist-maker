@@ -50,6 +50,39 @@ def distribute_songs_fairly(songs: list[Song], num_playlists: int) -> list[list[
     return playlists
 
 
+def distribute_songs_sequentially(songs: list[Song], num_playlists: int) -> list[list[Song]]:
+    """
+    Verteilt Songs sequentiell (in Excel-Reihenfolge) auf mehrere Playlists.
+
+    Beispiel: Bei 30 Songs und 3 Playlists:
+    - Playlist 1: Songs 0-9
+    - Playlist 2: Songs 10-19
+    - Playlist 3: Songs 20-29
+    """
+    if num_playlists <= 0:
+        raise ValueError("Anzahl der Playlists muss mindestens 1 sein")
+
+    if not songs:
+        return [[] for _ in range(num_playlists)]
+
+    # Berechne Songs pro Playlist
+    songs_per_playlist = len(songs) // num_playlists
+    remainder = len(songs) % num_playlists
+
+    playlists = []
+    start_idx = 0
+
+    for i in range(num_playlists):
+        # Erste 'remainder' Playlists bekommen einen Song mehr
+        playlist_size = songs_per_playlist + (1 if i < remainder else 0)
+        end_idx = start_idx + playlist_size
+
+        playlists.append(songs[start_idx:end_idx])
+        start_idx = end_idx
+
+    return playlists
+
+
 def get_distribution_stats(playlists: list[list[Song]]) -> dict:
     """
     Gibt Statistiken über die Verteilung zurück.

@@ -4,13 +4,18 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
 
 ## Features
 
-- YouTube Lyric Video Download mit Validierung
+- YouTube Lyric Video Download mit Validierung (optional überspringbar)
+- Automatische URL-Bereinigung (entfernt Playlist-Parameter)
 - Audio-Normalisierung (einheitliche Lautstärke)
 - Einlauf- und Auslaufzeit für jeden Song
 - Fade-In und Fade-Out
-- Faire Verteilung der Songs auf mehrere Playlists (Artist-balanciert)
+- Zwei Verteilungsmodi:
+  - **Fair**: Artist-balanciert, gemischt
+  - **Sequential**: Excel-Reihenfolge beibehalten
+- Normalisierte Dateinamen (lowercase, keine Leerzeichen/Sonderzeichen)
 - MP3 und MP4 Export
 - YouTube-Chapters für Video-Beschreibung
+- Fehler-Export als Textdatei
 
 ## Voraussetzungen
 
@@ -60,7 +65,10 @@ Erstelle eine Excel-Datei (z.B. `request.xlsx`) mit folgenden Spalten:
 
 **Wichtig:**
 - Die URL muss zu einem **Lyric Video** führen (nicht Official MV oder Dance Practice)
-- Artist und Titel müssen im Video-Titel vorkommen
+- Artist und Titel müssen im Video-Titel vorkommen (falls URL-Validierung aktiviert)
+- URLs mit `&list=` Parameter werden automatisch bereinigt (lädt nur das einzelne Video)
+- Dateinamen werden normalisiert: "NewJeans - Hype Boy!" → `newjeans-hypeboy.mp3`
+  - Verhindert Duplikate durch Schreibvarianten (z.B. "Stray Kids" vs "Straykids")
 - Wenn "Dancebreak" in der Description steht, wird `dancebreak.mp3` vor dem Song eingefügt
 
 ## Assets vorbereiten
@@ -83,19 +91,26 @@ Das Programm fragt nach folgenden Eingaben (Enter für Standardwert):
 | Eingabe | Standardwert | Beschreibung |
 |---------|--------------|--------------|
 | Excel-Datei | `request.xlsx` | Pfad zur Excel-Datei |
-| Anzahl Playlists | `3` | Auf wie viele Playlists verteilt wird |
+| Anzahl Playlists | `4` | Auf wie viele Playlists verteilt wird |
 | Einlaufzeit | `8` Sekunden | Zeit vor dem Start-Timestamp |
 | Auslaufzeit | `2` Sekunden | Zeit nach dem End-Timestamp |
+| Verteilungsmodus | `1` (Fair) | `1` = Fair (gemischt), `2` = Sequential (Excel-Reihenfolge) |
 | Output-Ordner | `output` | Wo die Dateien gespeichert werden |
 | Assets-Ordner | `assets` | Wo die Assets liegen |
+| URL-Validierung überspringen | `N` (Nein) | `J` = Überspringen, `N` = Normale Validierung |
 
 ## Ablauf
 
-1. **Validierung & Download**: Jede URL wird geprüft (Artist, Titel, Lyric Video). Gültige Songs werden sofort heruntergeladen.
+1. **Validierung & Download**:
+   - Bereits heruntergeladene Songs werden erkannt (spart Zeit!)
+   - Neue Songs werden validiert (falls nicht übersprungen): Artist, Titel, Lyric Video
+   - Gültige Songs werden sofort heruntergeladen (128 kbps für schnellere Downloads)
 
-2. **Fehlerbehandlung**: Falls Fehler gefunden werden, stoppt das Programm und zeigt alle Fehler an. Bereits heruntergeladene Songs bleiben gecacht.
+2. **Fehlerbehandlung**: Falls Fehler gefunden werden, stoppt das Programm und zeigt alle Fehler an. Zusätzlich wird `output/errors.txt` erstellt. Bereits heruntergeladene Songs bleiben gecacht.
 
-3. **Playlist-Erstellung**: Songs werden fair auf die Playlists verteilt (kein Artist dominiert eine Playlist).
+3. **Playlist-Erstellung**:
+   - **Fair Mode**: Songs werden artist-balanciert gemischt (kein Artist dominiert)
+   - **Sequential Mode**: Songs bleiben in Excel-Reihenfolge, gleichmäßig auf N Playlists aufgeteilt
 
 4. **Audio-Verarbeitung**:
    - Lautstärke-Normalisierung
@@ -115,7 +130,8 @@ output/
 ├── playlist_2.mp3
 ├── playlist_2.mp4
 ├── ...
-└── chapters.txt
+├── chapters.txt
+└── errors.txt         (nur bei Fehlern)
 ```
 
 Die `chapters.txt` enthält YouTube-Chapters für alle Playlists:
@@ -129,6 +145,8 @@ Die `chapters.txt` enthält YouTube-Chapters für alle Playlists:
 
 ## Tipps
 
-- **Downloads werden gecacht**: Wenn ein Song bereits in `downloads/` liegt, wird er nicht erneut heruntergeladen.
-- **Bei Fehlern**: Korrigiere die Excel-Datei und starte erneut. Bereits heruntergeladene Songs bleiben erhalten.
+- **Downloads werden gecacht**: Wenn ein Song bereits in `downloads/` liegt, wird er nicht erneut heruntergeladen (keine erneute URL-Validierung nötig).
+- **Bei Fehlern**: Korrigiere die Excel-Datei und starte erneut. Bereits heruntergeladene Songs bleiben erhalten. Fehlerliste siehe `output/errors.txt`.
 - **Lyric Video finden**: Suche auf YouTube nach "[Artist] [Song] Lyrics" oder "[Artist] [Song] 가사"
+- **URL-Validierung überspringen**: Nützlich wenn du Playlists für andere erstellst und nur prüfen willst, ob Downloads funktionieren.
+- **Sequential Mode**: Perfekt wenn du eine spezifische Reihenfolge aus der Excel-Datei beibehalten möchtest.
