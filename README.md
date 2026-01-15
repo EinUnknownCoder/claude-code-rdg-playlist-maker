@@ -21,12 +21,15 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
 
 - Python 3.11+ (empfohlen: 3.11 oder höher)
 - ffmpeg
+- Node.js (für YouTube JavaScript-Challenge-Solving)
 
-### ffmpeg installieren (macOS)
+### ffmpeg und Node.js installieren (macOS)
 
 ```bash
-brew install ffmpeg
+brew install ffmpeg node
 ```
+
+**Hinweis**: Node.js wird für YouTubes JavaScript-Challenges benötigt. Ohne Node.js schlagen Downloads mit "Signature solving failed" fehl.
 
 ## Installation
 
@@ -166,6 +169,16 @@ Das Programm verwendet **automatisch Cookies aus deinem Browser** (Standard: Chr
 **Unterstützte Browser**: Chrome (empfohlen), Firefox, Edge, Opera, Brave
 
 **⚠️ Safari funktioniert NICHT auf macOS** (Sandbox-Schutz verhindert Cookie-Zugriff)
+
+### JavaScript Challenge Errors ("Signature solving failed")
+YouTube verwendet JavaScript-basierte Anti-Bot-Mechanismen. **Lösung**:
+
+**Node.js installieren** (falls nicht vorhanden):
+```bash
+brew install node
+```
+
+Nach der Installation startet yt-dlp neu und kann die JavaScript-Challenges automatisch lösen.
 
 ### Downloads schlagen fehl ("ERROR: The downloaded file is empty")
 Das Programm hat automatische Retry-Mechanismen (10 Versuche) und Sleep-Intervals (1-3s zwischen Downloads) um Rate Limiting zu vermeiden. Falls Downloads trotzdem fehlschlagen:

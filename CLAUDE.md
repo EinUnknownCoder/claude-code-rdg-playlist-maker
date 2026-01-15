@@ -97,7 +97,9 @@ yt-dlp>=2024.1.0  # YouTube Download
 pydub>=0.25.0     # Audio-Bearbeitung
 ```
 
-Systemvoraussetzung: ffmpeg muss installiert sein (`brew install ffmpeg` auf macOS)
+Systemvoraussetzungen:
+- **ffmpeg** muss installiert sein (`brew install ffmpeg` auf macOS)
+- **Node.js** muss installiert sein (`brew install node` auf macOS) für YouTube JavaScript-Challenge-Solving
 
 ## Testen
 ```bash
@@ -154,6 +156,14 @@ YouTube Bot-Detection blockiert yt-dlp Anfragen. **Lösung**:
 Safari auf macOS speichert Cookies in einem geschützten Container. **Lösung**:
 - Verwende Chrome oder Firefox stattdessen
 - Das Programm warnt automatisch bei Safari-Auswahl und bietet alternative Browser an
+
+### "Signature solving failed" / "n challenge solving failed"
+YouTube verwendet JavaScript-basierte Anti-Bot-Challenges. **Lösung**:
+```bash
+brew install node
+```
+Nach der Installation erkennt yt-dlp Node.js automatisch und kann die JavaScript-Challenges lösen.
+**Symptome**: "Only images are available for download", "Requested format is not available"
 
 ### "ERROR: The downloaded file is empty"
 Dieses Problem wurde mit v2 behoben durch:
