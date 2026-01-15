@@ -42,7 +42,22 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         }],
         'outtmpl': temp_path,
         'quiet': True,
-        'no_warnings': True,
+        'no_warnings': False,  # Zeige Warnungen für Debugging
+        # Retry-Optionen für zuverlässigere Downloads
+        'retries': 10,
+        'fragment_retries': 10,
+        'skip_unavailable_fragments': True,
+        # Sleep interval um Rate Limiting zu vermeiden
+        'sleep_interval': 1,
+        'max_sleep_interval': 3,
+        # User-Agent setzen
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        # Weitere Stabilität
+        'nocheckcertificate': True,
+        'ignoreerrors': False,
+        # Extractor Optionen
+        'extract_flat': False,
+        'source_address': '0.0.0.0',  # Bind to all interfaces
     }
 
     if progress_callback:

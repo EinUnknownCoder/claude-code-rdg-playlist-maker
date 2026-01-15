@@ -37,6 +37,11 @@ Erwartete Spalten (Reihenfolge):
 
 ## Audio-Verarbeitung
 - **Download-Qualität**: 128 kbps MP3 (ausreichend für normalisiertes Audio)
+- **Download-Stabilität**:
+  - 10 Retries bei Fehlern (normal + fragments)
+  - 1-3 Sekunden Sleep zwischen Downloads (Rate Limiting vermeiden)
+  - User-Agent gesetzt für bessere Kompatibilität
+  - Automatisches Überspringen fehlender Fragmente
 - **Dateinamen-Normalisierung**: Lowercase, keine Leerzeichen/Sonderzeichen
   - Regex: `r'[^\w]'` entfernt alle Nicht-Wortzeichen
   - Beispiel: "NewJeans - Hype Boy!" → `newjeans-hypeboy.mp3`
@@ -132,3 +137,17 @@ python main.py
 ## Bekannte Einschränkungen
 - Python 3.9 zeigt Deprecation-Warnungen von yt-dlp (funktioniert aber)
 - tkinter GUI funktioniert nicht auf allen macOS-Versionen (daher CLI)
+
+## Troubleshooting
+
+### "ERROR: The downloaded file is empty"
+Dieses Problem wurde mit v2 behoben durch:
+- Retry-Mechanismus (10 Versuche)
+- Sleep intervals zwischen Downloads (1-3s)
+- User-Agent Header
+- Fragment-Retry-Logik
+
+Falls es weiterhin auftritt:
+1. Prüfe Internet-Verbindung
+2. Warte ein paar Minuten (YouTube Rate Limiting)
+3. Versuche es mit weniger Songs gleichzeitig

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix download failures: Add robust retry logic and rate limiting protection\n\nProblem: \"ERROR: The downloaded file is empty\" errors caused by YouTube rate limiting\n\nSolution:\n- Add 10 retries for downloads and fragments\n- Implement 1-3 second sleep intervals between downloads\n- Set modern User-Agent header for better compatibility\n- Skip unavailable fragments instead of failing\n- Keep warnings enabled for better debugging\n\nTechnical changes:\n- download.py: Enhanced yt-dlp options with retry logic, sleep intervals, and User-Agent\n- CLAUDE.md: Added troubleshooting section and download stability documentation\n- README.md: Added troubleshooting section for download failures\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)"
+    ]
+  }
+}

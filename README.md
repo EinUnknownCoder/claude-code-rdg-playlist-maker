@@ -150,3 +150,13 @@ Die `chapters.txt` enthält YouTube-Chapters für alle Playlists:
 - **Lyric Video finden**: Suche auf YouTube nach "[Artist] [Song] Lyrics" oder "[Artist] [Song] 가사"
 - **URL-Validierung überspringen**: Nützlich wenn du Playlists für andere erstellst und nur prüfen willst, ob Downloads funktionieren.
 - **Sequential Mode**: Perfekt wenn du eine spezifische Reihenfolge aus der Excel-Datei beibehalten möchtest.
+
+## Troubleshooting
+
+### Downloads schlagen fehl ("ERROR: The downloaded file is empty")
+Das Programm hat automatische Retry-Mechanismen (10 Versuche) und Sleep-Intervals (1-3s zwischen Downloads) um Rate Limiting zu vermeiden. Falls Downloads trotzdem fehlschlagen:
+
+1. **Internet-Verbindung prüfen**
+2. **YouTube Rate Limiting**: Warte 5-10 Minuten und versuche es erneut
+3. **Weniger Songs gleichzeitig**: Teile große Excel-Dateien in kleinere auf
+4. **yt-dlp aktualisieren**: `pip install --upgrade yt-dlp` im venv
