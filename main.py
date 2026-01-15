@@ -78,7 +78,7 @@ def main():
     print("  edge = Microsoft Edge")
     print("  [leer] = Keine Cookies verwenden")
     print("\n⚠ Safari funktioniert auf macOS nicht (Sandbox-Schutz)")
-    browser_input = get_input_with_default("Browser", "chrome").strip().lower()
+    browser_input = get_input_with_default("Browser", "safari").strip().lower()
 
     # Safari warnen
     if browser_input == 'safari':
