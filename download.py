@@ -40,7 +40,8 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
     temp_path = output_path.rsplit('.', 1)[0]
 
     ydl_opts = {
-        'format': 'bestaudio/best',
+        # Flexiblere Format-Auswahl mit mehreren Fallbacks
+        'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -62,8 +63,9 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         'nocheckcertificate': True,
         'ignoreerrors': False,
         # Extractor Optionen
-        'extract_flat': False,
         'source_address': '0.0.0.0',  # Bind to all interfaces
+        # Format-Auswahl nicht zu strikt
+        'allow_unplayable_formats': False,
     }
 
     # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)

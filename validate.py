@@ -26,8 +26,9 @@ def get_video_info(url: str, browser: str = None) -> dict:
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'extract_flat': False,
         'skip_download': True,
+        # Kein spezifisches Format anfordern für Validation - akzeptiere alles verfügbare
+        'format': 'best',
     }
 
     # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)
