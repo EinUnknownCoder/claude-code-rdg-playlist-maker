@@ -73,12 +73,21 @@ def main():
 
     # Browser für Cookie-Import (gegen YouTube Bot-Detection)
     print("\nBrowser für Cookie-Import (gegen YouTube Bot-Detection):")
-    print("  chrome = Google Chrome/Chromium")
+    print("  chrome = Google Chrome/Chromium (empfohlen)")
     print("  firefox = Mozilla Firefox")
-    print("  safari = Apple Safari")
+    print("  edge = Microsoft Edge")
     print("  [leer] = Keine Cookies verwenden")
+    print("\n⚠ Safari funktioniert auf macOS nicht (Sandbox-Schutz)")
     browser_input = get_input_with_default("Browser", "chrome").strip().lower()
-    browser = browser_input if browser_input in ['chrome', 'firefox', 'safari', 'edge', 'opera', 'brave'] else None
+
+    # Safari warnen
+    if browser_input == 'safari':
+        print("⚠ WARNUNG: Safari-Cookies können auf macOS nicht gelesen werden!")
+        print("⚠ Verwende stattdessen Chrome oder Firefox.")
+        retry = input("Anderen Browser wählen? (chrome/firefox/edge) [chrome]: ").strip().lower()
+        browser_input = retry if retry else "chrome"
+
+    browser = browser_input if browser_input in ['chrome', 'firefox', 'edge', 'opera', 'brave'] else None
 
     if browser:
         print(f"✓ Verwende Cookies aus {browser.title()}")

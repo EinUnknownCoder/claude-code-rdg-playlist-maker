@@ -34,9 +34,18 @@ def get_video_info(url: str, browser: str = None) -> dict:
     if browser:
         ydl_opts['cookiesfrombrowser'] = (browser,)
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info
+    except PermissionError as e:
+        # Safari Cookies sind auf macOS durch Sandbox geschützt
+        if 'Safari' in str(e):
+            raise PermissionError(
+                "Safari-Cookies können auf macOS nicht gelesen werden (Sandbox-Schutz). "
+                "Bitte verwende Chrome oder Firefox stattdessen."
+            )
+        raise
 
 
 def validate_url(song: Song, browser: str = None) -> ValidationResult:

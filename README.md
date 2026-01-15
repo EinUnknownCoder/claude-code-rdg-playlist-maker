@@ -99,7 +99,7 @@ Das Programm fragt nach folgenden Eingaben (Enter für Standardwert):
 | Output-Ordner | `output` | Wo die Dateien gespeichert werden |
 | Assets-Ordner | `assets` | Wo die Assets liegen |
 | URL-Validierung überspringen | `N` (Nein) | `J` = Überspringen, `N` = Normale Validierung |
-| Browser für Cookies | `chrome` | Browser für Cookie-Import (`chrome`, `firefox`, `safari`, oder leer) |
+| Browser für Cookies | `chrome` | Browser für Cookie-Import (`chrome`, `firefox`, `edge`, oder leer) |
 
 ## Ablauf
 
@@ -160,10 +160,12 @@ YouTube blockiert manchmal yt-dlp Anfragen als Bot-Schutz. **Lösung**:
 
 Das Programm verwendet **automatisch Cookies aus deinem Browser** (Standard: Chrome).
 - Stelle sicher, dass du in YouTube im Browser eingeloggt bist
-- Beim Programmstart wird nach dem Browser gefragt (chrome/firefox/safari)
+- Beim Programmstart wird nach dem Browser gefragt (chrome/firefox/edge)
 - Die Cookies werden automatisch importiert
 
-**Unterstützte Browser**: Chrome, Firefox, Safari, Edge, Opera, Brave
+**Unterstützte Browser**: Chrome (empfohlen), Firefox, Edge, Opera, Brave
+
+**⚠️ Safari funktioniert NICHT auf macOS** (Sandbox-Schutz verhindert Cookie-Zugriff)
 
 ### Downloads schlagen fehl ("ERROR: The downloaded file is empty")
 Das Programm hat automatische Retry-Mechanismen (10 Versuche) und Sleep-Intervals (1-3s zwischen Downloads) um Rate Limiting zu vermeiden. Falls Downloads trotzdem fehlschlagen:

@@ -146,8 +146,14 @@ python main.py
 YouTube Bot-Detection blockiert yt-dlp Anfragen. **Lösung**:
 - Das Programm verwendet automatisch Browser-Cookies (Standard: Chrome)
 - Stelle sicher, dass du in YouTube im Browser eingeloggt bist
-- Beim Programmstart Browser auswählen (chrome/firefox/safari)
-- Unterstützte Browser: Chrome, Firefox, Safari, Edge, Opera, Brave
+- Beim Programmstart Browser auswählen (chrome/firefox/edge)
+- **Unterstützte Browser**: Chrome (empfohlen), Firefox, Edge, Opera, Brave
+- **⚠️ Safari funktioniert NICHT auf macOS** (Sandbox-Schutz verhindert Cookie-Zugriff)
+
+### "Operation not permitted" beim Safari Cookie-Zugriff
+Safari auf macOS speichert Cookies in einem geschützten Container. **Lösung**:
+- Verwende Chrome oder Firefox stattdessen
+- Das Programm warnt automatisch bei Safari-Auswahl und bietet alternative Browser an
 
 ### "ERROR: The downloaded file is empty"
 Dieses Problem wurde mit v2 behoben durch:
