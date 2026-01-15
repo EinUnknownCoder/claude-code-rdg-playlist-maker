@@ -27,8 +27,8 @@ def get_video_info(url: str, browser: str = None) -> dict:
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
-        # Kein spezifisches Format anfordern für Validation - akzeptiere alles verfügbare
-        'format': 'best',
+        # Keine Format-Validierung - nur Metadaten
+        'format': 'worst',  # Anfrage das schlechteste Format (am wenigsten restriktiv)
     }
 
     # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)
