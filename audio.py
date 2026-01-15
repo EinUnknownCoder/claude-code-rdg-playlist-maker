@@ -2,12 +2,29 @@
 
 import os
 from pydub import AudioSegment
+from pydub.silence import detect_silence
 from excel import Song
 
 
 def load_audio(filepath: str) -> AudioSegment:
     """Lädt eine Audio-Datei."""
     return AudioSegment.from_file(filepath)
+
+
+def strip_trailing_silence(audio: AudioSegment, silence_thresh: int = -40, min_silence_len: int = 100) -> AudioSegment:
+    """
+    Entfernt Stille am Ende eines Audio-Segments.
+
+    Args:
+        audio: Audio-Segment
+        silence_thresh: Schwellwert in dB für Stille-Erkennung
+        min_silence_len: Minimale Stille-Länge in ms
+    """
+    silences = detect_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
+    if silences and silences[-1][1] == len(audio):
+        # Letzte Stille geht bis zum Ende - abschneiden
+        return audio[:silences[-1][0]]
+    return audio
 
 
 def cut_audio(audio: AudioSegment, start_seconds: float, end_seconds: float) -> AudioSegment:
@@ -88,6 +105,8 @@ def build_playlist_audio(
     chapters = []
 
     three_audio = load_audio(three_mp3_path)
+    # Trailing silence entfernen für nahtlosen Übergang zum Song
+    three_audio = strip_trailing_silence(three_audio)
     dancebreak_audio = load_audio(dancebreak_mp3_path)
 
     for i, song in enumerate(songs):
@@ -153,8 +172,12 @@ def generate_chapters_text(all_playlists_chapters: list[tuple[int, list[dict]]])
     for playlist_num, chapters in all_playlists_chapters:
         lines.append(f"=== PLAYLIST {playlist_num} ===")
 
-        for chapter in chapters:
-            timestamp = format_timestamp(chapter['timestamp_ms'])
+        for i, chapter in enumerate(chapters):
+            # Erstes Chapter auf 00:00 für YouTube-Kompatibilität
+            if i == 0:
+                timestamp = "00:00"
+            else:
+                timestamp = format_timestamp(chapter['timestamp_ms'])
             artist = chapter['artist'].upper()
             title = chapter['title'].upper()
             description = chapter.get('description', '')

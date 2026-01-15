@@ -11,6 +11,21 @@ from video import create_video, check_ffmpeg
 from distribute import distribute_songs_fairly, distribute_songs_sequentially
 
 
+# ========================================
+# STANDARDWERTE - Hier einfach anpassen!
+# ========================================
+DEFAULT_EXCEL = "request.xlsx"
+DEFAULT_PLAYLISTS = 4
+DEFAULT_LEAD_IN = 8  # Sekunden vor Start-Timestamp
+DEFAULT_LEAD_OUT = 2  # Sekunden nach End-Timestamp
+DEFAULT_DISTRIBUTION_MODE = 1  # 1=Fair, 2=Sequential
+DEFAULT_OUTPUT_DIR = "output"
+DEFAULT_ASSETS_DIR = "assets"
+DEFAULT_BROWSER = "safari"
+DEFAULT_COVER = "PforzheimRPD.jpg"  # Cover-Bild für Video-Export
+# ========================================
+
+
 def print_header():
     """Zeigt den Header an."""
     print("\n" + "=" * 50)
@@ -48,19 +63,19 @@ def main():
     # Eingaben mit Standardwerten
     print("Drücke Enter für Standardwerte:\n")
 
-    excel_path = get_input_with_default("Excel-Datei", "request.xlsx")
-    num_playlists = get_int_with_default("Anzahl Playlists", 4)
-    lead_in_seconds = get_int_with_default("Einlaufzeit (Sekunden vor Start)", 8)
-    lead_out_seconds = get_int_with_default("Auslaufzeit (Sekunden nach Ende)", 2)
+    excel_path = get_input_with_default("Excel-Datei", DEFAULT_EXCEL)
+    num_playlists = get_int_with_default("Anzahl Playlists", DEFAULT_PLAYLISTS)
+    lead_in_seconds = get_int_with_default("Einlaufzeit (Sekunden vor Start)", DEFAULT_LEAD_IN)
+    lead_out_seconds = get_int_with_default("Auslaufzeit (Sekunden nach Ende)", DEFAULT_LEAD_OUT)
 
     # Verteilungsmodus wählen
     print("\nVerteilungsmodus:")
     print("  1 = Fair (Artist-balanciert, gemischt)")
     print("  2 = Sequential (Excel-Reihenfolge beibehalten)")
-    distribution_mode = get_int_with_default("Modus", 1)
+    distribution_mode = get_int_with_default("Modus", DEFAULT_DISTRIBUTION_MODE)
 
-    output_dir = get_input_with_default("Output-Ordner", "output")
-    assets_dir = get_input_with_default("Assets-Ordner", "assets")
+    output_dir = get_input_with_default("Output-Ordner", DEFAULT_OUTPUT_DIR)
+    assets_dir = get_input_with_default("Assets-Ordner", DEFAULT_ASSETS_DIR)
 
     # URL-Validierung überspringen?
     skip_validation_input = get_input_with_default(
@@ -73,31 +88,24 @@ def main():
 
     # Browser für Cookie-Import (gegen YouTube Bot-Detection)
     print("\nBrowser für Cookie-Import (gegen YouTube Bot-Detection):")
-    print("  chrome = Google Chrome/Chromium (empfohlen)")
+    print("  safari = Safari (empfohlen)")
+    print("  chrome = Google Chrome/Chromium")
     print("  firefox = Mozilla Firefox")
     print("  edge = Microsoft Edge")
     print("  [leer] = Keine Cookies verwenden")
-    print("\n⚠ Safari funktioniert auf macOS nicht (Sandbox-Schutz)")
-    browser_input = get_input_with_default("Browser", "safari").strip().lower()
+    browser_input = get_input_with_default("Browser", DEFAULT_BROWSER).strip().lower()
 
-    # Safari warnen
-    if browser_input == 'safari':
-        print("⚠ WARNUNG: Safari-Cookies können auf macOS nicht gelesen werden!")
-        print("⚠ Verwende stattdessen Chrome oder Firefox.")
-        retry = input("Anderen Browser wählen? (chrome/firefox/edge) [chrome]: ").strip().lower()
-        browser_input = retry if retry else "chrome"
-
-    browser = browser_input if browser_input in ['chrome', 'firefox', 'edge', 'opera', 'brave'] else None
+    browser = browser_input if browser_input in ['safari', 'chrome', 'firefox', 'edge', 'opera', 'brave'] else None
 
     if browser:
         print(f"✓ Verwende Cookies aus {browser.title()}")
     else:
         print("⚠ Keine Browser-Cookies - kann bei YouTube Bot-Detection fehlschlagen")
 
-    # Pfade zu Assets
-    three_mp3 = os.path.join(assets_dir, "three.mp3")
-    dancebreak_mp3 = os.path.join(assets_dir, "dancebreak.mp3")
-    image_path = os.path.join(assets_dir, "RDGStuttgart2.jpg")
+    # Pfade zu Assets (Unterordner: countdown/, cover/)
+    three_mp3 = os.path.join(assets_dir, "countdown", "three.mp3")
+    dancebreak_mp3 = os.path.join(assets_dir, "countdown", "dancebreak.mp3")
+    image_path = os.path.join(assets_dir, "cover", DEFAULT_COVER)
 
     print("\n" + "-" * 50)
     print("Prüfe Voraussetzungen...")
@@ -107,8 +115,8 @@ def main():
         print(f"FEHLER: Excel-Datei nicht gefunden: {excel_path}")
         sys.exit(1)
 
-    for asset, name in [(three_mp3, "three.mp3"), (dancebreak_mp3, "dancebreak.mp3"),
-                        (image_path, "RDGStuttgart2.jpg")]:
+    for asset, name in [(three_mp3, "countdown/three.mp3"), (dancebreak_mp3, "countdown/dancebreak.mp3"),
+                        (image_path, f"cover/{DEFAULT_COVER}")]:
         if not os.path.exists(asset):
             print(f"FEHLER: Asset nicht gefunden: {name}")
             sys.exit(1)

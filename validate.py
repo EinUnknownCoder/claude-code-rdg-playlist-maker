@@ -1,9 +1,23 @@
 """URL-Validierung Modul für RDG Playlist Maker."""
 
+import re
 import yt_dlp
 from dataclasses import dataclass
 from typing import Optional
 from excel import Song
+
+
+def normalize_for_comparison(text: str) -> str:
+    """
+    Normalisiert einen Text für den Vergleich.
+    Entfernt Leerzeichen, Sonderzeichen und konvertiert zu lowercase.
+    z.B. "Stray Kids" -> "straykids", "NewJeans" -> "newjeans"
+    """
+    # Zu lowercase
+    text = text.lower()
+    # Nur Buchstaben und Zahlen behalten (keine Leerzeichen/Sonderzeichen)
+    text = re.sub(r'[^a-z0-9]', '', text)
+    return text
 
 
 @dataclass
@@ -63,30 +77,34 @@ def validate_url(song: Song, browser: str = None) -> ValidationResult:
     """
     try:
         info = get_video_info(song.youtube_url, browser=browser)
-        video_title = info.get('title', '').lower()
+        video_title_original = info.get('title', '')
+        video_title = video_title_original.lower()
         video_description = info.get('description', '').lower()
+
+        # Normalisierte Version für Vergleich (ohne Leerzeichen/Sonderzeichen)
+        video_title_normalized = normalize_for_comparison(video_title_original)
 
         # Kombiniere Titel und Beschreibung für die Suche
         search_text = f"{video_title} {video_description}"
 
-        # 1. Prüfe ob Artist im Video-Titel vorkommt
-        artist_lower = song.artist.lower()
-        if artist_lower not in video_title:
+        # 1. Prüfe ob Artist im Video-Titel vorkommt (normalisiert)
+        artist_normalized = normalize_for_comparison(song.artist)
+        if artist_normalized not in video_title_normalized:
             return ValidationResult(
                 song=song,
                 is_valid=False,
                 error_message=f"Artist '{song.artist}' nicht im Video-Titel gefunden",
-                video_title=info.get('title')
+                video_title=video_title_original
             )
 
-        # 2. Prüfe ob Titel im Video-Titel vorkommt
-        title_lower = song.title.lower()
-        if title_lower not in video_title:
+        # 2. Prüfe ob Titel im Video-Titel vorkommt (normalisiert)
+        title_normalized = normalize_for_comparison(song.title)
+        if title_normalized not in video_title_normalized:
             return ValidationResult(
                 song=song,
                 is_valid=False,
                 error_message=f"Songtitel '{song.title}' nicht im Video-Titel gefunden",
-                video_title=info.get('title')
+                video_title=video_title_original
             )
 
         # 3. Prüfe ob es ein Lyric Video ist
@@ -106,7 +124,7 @@ def validate_url(song: Song, browser: str = None) -> ValidationResult:
                 song=song,
                 is_valid=False,
                 error_message="Dance Practice Video - schlechte Audioqualität",
-                video_title=info.get('title')
+                video_title=video_title_original
             )
 
         if is_official_mv and not is_lyric_video:
@@ -114,7 +132,7 @@ def validate_url(song: Song, browser: str = None) -> ValidationResult:
                 song=song,
                 is_valid=False,
                 error_message="Official Music Video - kann zusätzliche Soundeffekte enthalten",
-                video_title=info.get('title')
+                video_title=video_title_original
             )
 
         if not is_lyric_video:
@@ -122,14 +140,14 @@ def validate_url(song: Song, browser: str = None) -> ValidationResult:
                 song=song,
                 is_valid=False,
                 error_message="Kein Lyric Video - bitte Lyric Video URL verwenden",
-                video_title=info.get('title')
+                video_title=video_title_original
             )
 
         # Alles OK
         return ValidationResult(
             song=song,
             is_valid=True,
-            video_title=info.get('title')
+            video_title=video_title_original
         )
 
     except Exception as e:

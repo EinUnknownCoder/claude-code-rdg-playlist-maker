@@ -38,7 +38,7 @@ Erwartete Spalten (Reihenfolge):
 ## Audio-Verarbeitung
 - **Download-Qualität**: 128 kbps MP3 (ausreichend für normalisiertes Audio)
 - **Download-Stabilität**:
-  - Browser-Cookie-Import (Standard: Chrome) gegen YouTube Bot-Detection
+  - Browser-Cookie-Import (Standard: Safari) gegen YouTube Bot-Detection
   - 10 Retries bei Fehlern (normal + fragments)
   - 1-3 Sekunden Sleep zwischen Downloads (Rate Limiting vermeiden)
   - User-Agent gesetzt für bessere Kompatibilität
@@ -52,7 +52,7 @@ Erwartete Spalten (Reihenfolge):
 - **Normalisierung**: Alle Songs auf -14 dBFS
 - **Fade-In**: 2 Sekunden am Anfang jedes Songs
 - **Fade-Out**: 2 Sekunden am Ende jedes Songs
-- **Transitions**: `three.mp3` zwischen allen Songs, `dancebreak.mp3` vor Dancebreak-Songs
+- **Transitions**: `three.mp3` zwischen allen Songs (trailing silence automatisch entfernt), `dancebreak.mp3` vor Dancebreak-Songs
 
 ## URL-Validierung
 **Automatische Bereinigung**: URLs mit `&list=` Parameter werden bereinigt (verhindert Playlist-Download)
@@ -69,24 +69,28 @@ Erwartete Spalten (Reihenfolge):
 **Skip-Option**: Mit `skip_validation=True` kann die Validierung übersprungen werden (nur Download-Check)
 
 ## Wichtige Konventionen
-- Assets liegen in `assets/` (three.mp3, dancebreak.mp3, RDGStuttgart2.jpg)
+- Assets liegen in `assets/`:
+  - `assets/countdown/` - three.mp3, dancebreak.mp3
+  - `assets/cover/` - Cover-Bilder für Video-Export (PforzheimRPD.jpg, RDGStuttgart2.jpg, etc.)
 - Downloads werden gecacht in `downloads/` (Dateiname: `artist-title.mp3`, lowercase, normalisiert)
 - Output geht nach `output/` (playlist_1.mp3, playlist_1.mp4, ..., chapters.txt, errors.txt)
-- CLI-Standardwerte:
+- **Standardwerte** (in `main.py` am Anfang der Datei leicht änderbar):
   - Excel: request.xlsx
   - Playlists: 4
   - Einlauf: 8s
   - Auslauf: 2s
   - Verteilungsmodus: 1 (Fair)
   - Skip Validation: N (Nein)
-  - Browser: chrome (für Cookie-Import)
+  - Browser: safari (für Cookie-Import)
+  - Cover: PforzheimRPD.jpg
 
 ## Chapters-Format
 ```
 === PLAYLIST 1 ===
-00:03 ARTIST - TITEL (Songpart, Requester)
-01:23 ARTIST - TITEL (Songpart, Requester)
+00:00 ARTIST - TITEL (Songpart, Requester)
+01:20 ARTIST - TITEL (Songpart, Requester)
 ```
+- Erstes Chapter beginnt bei 00:00 (YouTube-Kompatibilität)
 - Artist und Titel in CAPS LOCK
 - Songpart und Requester in normaler Schrift in Klammern
 
@@ -128,6 +132,8 @@ python main.py
 - Enthält alle Fehlermeldungen für spätere Referenz
 
 ## Typische Erweiterungen
+- **Standardwerte ändern**: `main.py` → Konfigurationssektion am Anfang der Datei (DEFAULT_*)
+- **Cover-Bild ändern**: `main.py` → `DEFAULT_COVER` Variable anpassen
 - **Neue Validierungsregeln**: `validate.py` → `validate_url()` anpassen
 - **Excel-Spalten ändern**: `excel.py` → `Song` Dataclass und `read_excel()` anpassen
 - **Audio-Transitions ändern**: `audio.py` → `build_playlist_audio()` anpassen
@@ -146,16 +152,20 @@ python main.py
 
 ### "Sign in to confirm you're not a bot"
 YouTube Bot-Detection blockiert yt-dlp Anfragen. **Lösung**:
-- Das Programm verwendet automatisch Browser-Cookies (Standard: Chrome)
+- Das Programm verwendet automatisch Browser-Cookies (Standard: Safari)
 - Stelle sicher, dass du in YouTube im Browser eingeloggt bist
-- Beim Programmstart Browser auswählen (chrome/firefox/edge)
-- **Unterstützte Browser**: Chrome (empfohlen), Firefox, Edge, Opera, Brave
-- **⚠️ Safari funktioniert NICHT auf macOS** (Sandbox-Schutz verhindert Cookie-Zugriff)
+- Beim Programmstart Browser auswählen (safari/chrome/firefox/edge)
+- **Unterstützte Browser**: Safari (empfohlen), Chrome, Firefox, Edge, Opera, Brave
 
-### "Operation not permitted" beim Safari Cookie-Zugriff
-Safari auf macOS speichert Cookies in einem geschützten Container. **Lösung**:
-- Verwende Chrome oder Firefox stattdessen
-- Das Programm warnt automatisch bei Safari-Auswahl und bietet alternative Browser an
+### "No supported JavaScript runtime could be found"
+Diese Warnung erscheint, aber Downloads funktionieren trotzdem. **Optional beheben**:
+```bash
+brew install node
+```
+Die Warnung kann ignoriert werden, wenn Downloads funktionieren.
+
+### "Some web_safari client https formats have been skipped" / "SABR streaming"
+Diese Warnung kann ignoriert werden. Die Downloads funktionieren trotzdem, weil yt-dlp auf alternative Formate ausweicht.
 
 ### "Signature solving failed" / "n challenge solving failed"
 YouTube verwendet JavaScript-basierte Anti-Bot-Challenges. **Lösung**:
@@ -166,8 +176,8 @@ Nach der Installation erkennt yt-dlp Node.js automatisch und kann die JavaScript
 **Symptome**: "Only images are available for download", "Requested format is not available"
 
 ### "ERROR: The downloaded file is empty"
-Dieses Problem wurde mit v2 behoben durch:
-- Browser-Cookie-Import (Standard: Chrome)
+Dieses Problem wurde behoben durch:
+- Browser-Cookie-Import (Standard: Safari)
 - Retry-Mechanismus (10 Versuche)
 - Sleep intervals zwischen Downloads (1-3s)
 - User-Agent Header
