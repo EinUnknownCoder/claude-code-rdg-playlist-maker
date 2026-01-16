@@ -153,7 +153,7 @@ Die `chapters.txt` enthält YouTube-Chapters für alle Playlists und Hashtags:
 #NEWJEANS #STRAYKIDS #BLACKPINK #TWICE #BTS
 ```
 
-Die Hashtags kannst du direkt in die YouTube-Videobeschreibung kopieren.
+Die Hashtags sind alphabetisch sortiert und werden nach Normalisierung dedupliziert (z.B. "Stray Kids" und "STRAY KIDS" → nur ein `#STRAYKIDS`). Einfach in die YouTube-Videobeschreibung kopieren.
 
 ## Tipps
 

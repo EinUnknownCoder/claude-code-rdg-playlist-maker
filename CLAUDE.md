@@ -150,7 +150,8 @@ python main.py
 ### YouTube-Hashtags
 - Am Ende von `chapters.txt` werden automatisch Hashtags generiert
 - Alle Artists in CAPS LOCK, ohne Sonderzeichen/Leerzeichen
-- Keine Duplikate (z.B. nur ein `#STRAYKIDS`)
+- Duplikate werden nach Normalisierung entfernt (z.B. "Stray Kids" und "STRAY KIDS" → nur ein `#STRAYKIDS`)
+- Alphabetisch sortiert
 - Zum Kopieren in die YouTube-Videobeschreibung
 
 ## Typische Erweiterungen
