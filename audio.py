@@ -192,13 +192,15 @@ def generate_chapters_text(all_playlists_chapters: list[tuple[int, list[dict]]])
 
         lines.append("")  # Leerzeile zwischen Playlists
 
-    # Hashtags generieren
+    # Hashtags generieren (erst normalisieren, dann Duplikate entfernen)
     lines.append("=== HASHTAGS ===")
-    hashtags = []
-    for artist in sorted(all_artists):
+    hashtag_set = set()
+    for artist in all_artists:
         # Entferne Sonderzeichen und Leerzeichen, CAPS LOCK
         safe_artist = re.sub(r'[^\w]', '', artist).upper()
-        hashtags.append(f"#{safe_artist}")
+        hashtag_set.add(f"#{safe_artist}")
+    # Alphabetisch sortieren
+    hashtags = sorted(hashtag_set)
     lines.append(" ".join(hashtags))
     lines.append("")
 
