@@ -12,9 +12,11 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
 - Zwei Verteilungsmodi:
   - **Fair**: Artist-balanciert, gemischt
   - **Sequential**: Excel-Reihenfolge beibehalten
+- **Interaktive Last-Song-Auswahl** - wähle den Abschluss-Song für jede Playlist
 - Normalisierte Dateinamen (lowercase, keine Leerzeichen/Sonderzeichen)
-- MP3 und MP4 Export
+- MP3 und MP4 Export mit **Fortschrittsanzeige**
 - YouTube-Chapters für Video-Beschreibung
+- **Automatische Hashtag-Generierung** für YouTube-Beschreibung
 - Fehler-Export als Textdatei
 
 ## Voraussetzungen
@@ -139,14 +141,19 @@ output/
 └── errors.txt         (nur bei Fehlern)
 ```
 
-Die `chapters.txt` enthält YouTube-Chapters für alle Playlists:
+Die `chapters.txt` enthält YouTube-Chapters für alle Playlists und Hashtags:
 
 ```
 === PLAYLIST 1 ===
-00:03 ARTIST - TITEL (Songpart, Requester)
+00:00 ARTIST - TITEL (Songpart, Requester)
 01:23 ARTIST - TITEL (Songpart, Requester)
 ...
+
+=== HASHTAGS ===
+#NEWJEANS #STRAYKIDS #BLACKPINK #TWICE #BTS
 ```
+
+Die Hashtags kannst du direkt in die YouTube-Videobeschreibung kopieren.
 
 ## Tipps
 

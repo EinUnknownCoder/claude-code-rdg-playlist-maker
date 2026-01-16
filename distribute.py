@@ -113,3 +113,23 @@ def print_distribution_summary(playlists: list[list[Song]]) -> None:
         zip(stats['songs_per_playlist'], stats['artists_per_playlist']), 1
     ):
         print(f"Playlist {i}: {song_count} Songs von {artist_count} verschiedenen Artists")
+
+
+def move_song_to_last(playlist: list[Song], index: int) -> list[Song]:
+    """
+    Verschiebt einen Song ans Ende der Playlist.
+
+    Args:
+        playlist: Liste von Songs
+        index: 0-basierter Index des Songs, der ans Ende soll
+
+    Returns:
+        Neue Liste mit dem Song am Ende
+    """
+    if index < 0 or index >= len(playlist):
+        raise ValueError(f"Index {index} außerhalb des gültigen Bereichs (0-{len(playlist) - 1})")
+
+    result = playlist.copy()
+    song = result.pop(index)
+    result.append(song)
+    return result

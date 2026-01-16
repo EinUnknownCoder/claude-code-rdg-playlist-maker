@@ -89,16 +89,21 @@ Erwartete Spalten (Reihenfolge):
 === PLAYLIST 1 ===
 00:00 ARTIST - TITEL (Songpart, Requester)
 01:20 ARTIST - TITEL (Songpart, Requester)
+
+=== HASHTAGS ===
+#NEWJEANS #STRAYKIDS #BLACKPINK #TWICE
 ```
 - Erstes Chapter beginnt bei 00:00 (YouTube-Kompatibilität)
 - Artist und Titel in CAPS LOCK
 - Songpart und Requester in normaler Schrift in Klammern
+- Am Ende: Hashtags aller Artists (CAPS LOCK, ohne Sonderzeichen, keine Duplikate)
 
 ## Abhängigkeiten
 ```
 openpyxl>=3.1.0   # Excel lesen
 yt-dlp>=2024.1.0  # YouTube Download
 pydub>=0.25.0     # Audio-Bearbeitung
+tqdm>=4.66.0      # Fortschrittsanzeige
 ```
 
 Systemvoraussetzungen:
@@ -130,6 +135,23 @@ python main.py
 ### Fehler-Export
 - Bei Fehlern wird automatisch `output/errors.txt` erstellt
 - Enthält alle Fehlermeldungen für spätere Referenz
+
+### Fortschrittsanzeige (tqdm)
+- Zeigt Fortschrittsbalken beim Verarbeiten der Songs pro Playlist
+- Format: `Songs verarbeiten: 100%|████████████████| 12/12 [00:08<00:00]`
+- MP3- und Video-Export zeigen "OK" nach Abschluss
+
+### Interaktive Last-Song-Auswahl
+- Nach der Song-Verteilung kann für jede Playlist der letzte Song gewählt werden
+- Alle Songs werden nummeriert angezeigt
+- Enter = keine Änderung, Nummer eingeben = Song ans Ende verschieben
+- Ermöglicht einen guten Abschluss-Song pro Playlist
+
+### YouTube-Hashtags
+- Am Ende von `chapters.txt` werden automatisch Hashtags generiert
+- Alle Artists in CAPS LOCK, ohne Sonderzeichen/Leerzeichen
+- Keine Duplikate (z.B. nur ein `#STRAYKIDS`)
+- Zum Kopieren in die YouTube-Videobeschreibung
 
 ## Typische Erweiterungen
 - **Standardwerte ändern**: `main.py` → Konfigurationssektion am Anfang der Datei (DEFAULT_*)

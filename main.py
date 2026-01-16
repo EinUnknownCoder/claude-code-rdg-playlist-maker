@@ -3,12 +3,13 @@
 import os
 import sys
 
+from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
 from validate import validate_url, format_validation_errors, ValidationResult
 from download import download_song, is_downloaded, get_download_path
 from audio import build_playlist_audio, export_audio, generate_chapters_text
 from video import create_video, check_ffmpeg
-from distribute import distribute_songs_fairly, distribute_songs_sequentially
+from distribute import distribute_songs_fairly, distribute_songs_sequentially, move_song_to_last
 
 
 # ========================================
@@ -49,6 +50,55 @@ def get_int_with_default(prompt: str, default: int) -> int:
             return int(user_input)
         except ValueError:
             print("Bitte eine Zahl eingeben.")
+
+
+def select_last_songs(playlists: list) -> list:
+    """
+    Ermöglicht dem Benutzer, für jede Playlist den letzten Song auszuwählen.
+
+    Args:
+        playlists: Liste von Playlists (jede Playlist ist eine Liste von Songs)
+
+    Returns:
+        Modifizierte Playlists mit neu geordneten Songs
+    """
+    print("\n" + "-" * 50)
+    print("Letzten Song für jede Playlist auswählen")
+    print("(Enter drücken = keine Änderung)\n")
+
+    result = []
+    for playlist_num, playlist in enumerate(playlists, 1):
+        print(f"Playlist {playlist_num} ({len(playlist)} Songs):")
+        for i, song in enumerate(playlist, 1):
+            dancebreak_marker = " [Dancebreak]" if song.is_dancebreak else ""
+            print(f"  {i}. {song.artist} - {song.title} ({song.description}, {song.dancer_name}){dancebreak_marker}")
+
+        while True:
+            choice = input(f"\nLetzter Song für Playlist {playlist_num} [Enter = {len(playlist)}]: ").strip()
+
+            if not choice:
+                # Keine Änderung, aktueller letzter Song bleibt
+                result.append(playlist)
+                print(f"  -> Keine Änderung")
+                break
+
+            try:
+                song_index = int(choice)
+                if 1 <= song_index <= len(playlist):
+                    # Song ans Ende verschieben (index ist 1-basiert, move_song_to_last erwartet 0-basiert)
+                    new_playlist = move_song_to_last(playlist, song_index - 1)
+                    result.append(new_playlist)
+                    selected = playlist[song_index - 1]
+                    print(f"  -> {selected.artist} - {selected.title} wird als letzter Song gesetzt")
+                    break
+                else:
+                    print(f"  Bitte eine Zahl zwischen 1 und {len(playlist)} eingeben.")
+            except ValueError:
+                print("  Bitte eine gültige Zahl eingeben.")
+
+        print()
+
+    return result
 
 
 def main():
@@ -214,6 +264,9 @@ def main():
         artists = set(s.artist for s in playlist)
         print(f"Playlist {i}: {len(playlist)} Songs von {len(artists)} Artists")
 
+    # Letzten Song für jede Playlist auswählen
+    playlists = select_last_songs(playlists)
+
     # Output-Ordner erstellen
     os.makedirs(output_dir, exist_ok=True)
 
@@ -227,27 +280,35 @@ def main():
     all_chapters = []
 
     for playlist_num, playlist_songs in enumerate(playlists, 1):
-        print(f"Playlist {playlist_num}:")
+        print(f"Playlist {playlist_num}/{num_playlists}:")
 
-        # Audio zusammenfügen
-        print(f"  Füge Audio zusammen...")
-        audio, chapters = build_playlist_audio(
-            playlist_songs, song_paths, three_mp3, dancebreak_mp3,
-            lead_in_seconds=lead_in_seconds,
-            lead_out_seconds=lead_out_seconds
-        )
+        # Audio zusammenfügen mit Fortschrittsanzeige
+        with tqdm(total=len(playlist_songs), desc="  Songs verarbeiten", unit="song",
+                  bar_format="  {desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]") as pbar:
+
+            def progress_callback(current, total, message):
+                pbar.update(1)
+
+            audio, chapters = build_playlist_audio(
+                playlist_songs, song_paths, three_mp3, dancebreak_mp3,
+                lead_in_seconds=lead_in_seconds,
+                lead_out_seconds=lead_out_seconds,
+                progress_callback=progress_callback
+            )
 
         # MP3 exportieren
         mp3_path = os.path.join(output_dir, f"playlist_{playlist_num}.mp3")
-        print(f"  Exportiere MP3...")
+        print(f"  MP3 exportieren...", end=" ", flush=True)
         export_audio(audio, mp3_path)
+        print("OK")
 
         # Video erstellen
         mp4_path = os.path.join(output_dir, f"playlist_{playlist_num}.mp4")
-        print(f"  Erstelle Video...")
+        print(f"  Video erstellen...", end=" ", flush=True)
         create_video(mp3_path, image_path, mp4_path)
+        print("OK")
 
-        print(f"  ✓ Fertig!")
+        print()
 
         all_chapters.append((playlist_num, chapters))
 

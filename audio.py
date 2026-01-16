@@ -167,7 +167,10 @@ def generate_chapters_text(all_playlists_chapters: list[tuple[int, list[dict]]])
     Args:
         all_playlists_chapters: Liste von (playlist_nummer, chapters_liste)
     """
+    import re
+
     lines = []
+    all_artists = set()
 
     for playlist_num, chapters in all_playlists_chapters:
         lines.append(f"=== PLAYLIST {playlist_num} ===")
@@ -184,6 +187,19 @@ def generate_chapters_text(all_playlists_chapters: list[tuple[int, list[dict]]])
             dancer = chapter.get('dancer', '')
             lines.append(f"{timestamp} {artist} - {title} ({description}, {dancer})")
 
+            # Artist für Hashtags sammeln
+            all_artists.add(chapter['artist'])
+
         lines.append("")  # Leerzeile zwischen Playlists
+
+    # Hashtags generieren
+    lines.append("=== HASHTAGS ===")
+    hashtags = []
+    for artist in sorted(all_artists):
+        # Entferne Sonderzeichen und Leerzeichen, CAPS LOCK
+        safe_artist = re.sub(r'[^\w]', '', artist).upper()
+        hashtags.append(f"#{safe_artist}")
+    lines.append(" ".join(hashtags))
+    lines.append("")
 
     return "\n".join(lines)
