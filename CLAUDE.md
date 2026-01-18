@@ -18,7 +18,9 @@ Python-CLI zur Erstellung von K-Pop Random Dance Game Playlists. Das Programm li
    - Prüfe ob bereits heruntergeladen (gecacht)
    - Falls nein: URL validieren (optional überspringbar), dann downloaden
 3. Falls Fehler: STOP, zeige alle Fehler + erstelle `errors.txt`, bereits geladene Songs bleiben gecacht
-4. Songs auf X Playlists verteilen (Fair: Round-Robin nach Artist, Sequential: Excel-Reihenfolge, Duration: gleiche Dauer)
+4. Songs auf X Playlists verteilen:
+   - Songs mit "Playlist X" im Requester-Feld werden explizit zugewiesen
+   - Restliche Songs werden nach Verteilungsmodus verteilt (Fair/Sequential/Duration)
 5. Pro Playlist: Audio zusammenfügen mit Transitions und Effekten
 6. MP3 und MP4 exportieren
 7. chapters.txt generieren (YouTube-Chapter-Format)
@@ -29,11 +31,19 @@ Erwartete Spalten (Reihenfolge):
 2. Artist
 3. Title
 4. Description/Songpart (enthält "Dancebreak" → dancebreak.mp3 wird eingefügt)
-5. Requester/Dancer Name
+5. Requester/Dancer Name (kann "Playlist X" enthalten für explizite Zuweisung)
 6. Start: Minute
 7. Start: Second
 8. End: Minute
 9. End: Second
+
+### Explizite Playlist-Zuweisung
+Songs können durch Angabe von "Playlist X" (z.B. "Playlist 3") im Requester/Dancer-Feld einer bestimmten Playlist zugewiesen werden:
+- Format: `[Name] Playlist X` oder nur `Playlist X` (case-insensitive)
+- Beispiel: `ilovetheworld Playlist 3` → Song wird in Playlist 3 platziert
+- Beispiel: `Playlist 2` → Song wird in Playlist 2 platziert
+- Ungültige Nummern (z.B. "Playlist 5" bei nur 4 Playlists) werden ignoriert
+- Songs ohne "Playlist X" werden normal nach dem gewählten Verteilungsmodus verteilt
 
 ## Audio-Verarbeitung
 - **Download-Qualität**: 128 kbps MP3 (ausreichend für normalisiertes Audio)
@@ -126,6 +136,10 @@ python main.py
 - **`get_output_folder_with_versioning()`** (main.py): Verwaltet die Versionierung
 
 ### Song-Verteilung
+- **`distribute_with_explicit_assignments()`** (distribute.py): Wrapper für alle Verteilungsmodi mit expliziter Zuweisung
+  - Extrahiert Songs mit "Playlist X" im Requester-Feld
+  - Verteilt restliche Songs nach gewähltem Modus
+  - Fügt explizit zugewiesene Songs den Playlists hinzu
 - **`distribute_songs_fairly()`** (distribute.py): Artist-balanciert, gemischt (Modus 1)
 - **`distribute_songs_sequentially()`** (distribute.py): Excel-Reihenfolge beibehalten (Modus 2)
   - Berechnet Songs pro Playlist: `len(songs) // num_playlists`
@@ -170,6 +184,7 @@ python main.py
 - **Cover-Bild ändern**: `main.py` → `DEFAULT_COVER` Variable anpassen
 - **Neue Validierungsregeln**: `validate.py` → `validate_url()` anpassen
 - **Excel-Spalten ändern**: `excel.py` → `Song` Dataclass und `read_excel()` anpassen
+- **Playlist-Zuweisung anpassen**: `excel.py` → `Song.assigned_playlist` Property anpassen
 - **Audio-Transitions ändern**: `audio.py` → `build_playlist_audio()` anpassen
 - **Fade-Zeiten ändern**: `audio.py` → `cut_song()` Parameter `fade_in_ms`, `fade_out_ms`
 - **Normalisierung anpassen**: `audio.py` → `normalize_audio()` Parameter `target_dBFS`

@@ -30,6 +30,14 @@ class Song:
         safe_title = re.sub(r'[^\w]', '', self.title).lower()
         return f"{safe_artist}-{safe_title}.mp3"
 
+    @property
+    def assigned_playlist(self) -> int | None:
+        """Extrahiert explizite Playlist-Nummer aus dancer_name (z.B. 'ilovetheworld Playlist 3' → 3)."""
+        match = re.search(r'Playlist\s*(\d+)', self.dancer_name, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        return None
+
     def get_start_seconds(self) -> float:
         """Gibt Start-Zeit in Sekunden zurück."""
         return self.start_seconds

@@ -165,6 +165,66 @@ def print_distribution_summary(playlists: list[list[Song]]) -> None:
         print(f"Playlist {i}: {song_count} Songs von {artist_count} verschiedenen Artists")
 
 
+def distribute_with_explicit_assignments(
+    songs: list[Song],
+    num_playlists: int,
+    distribution_mode: int,
+    lead_in_seconds: float = 8,
+    lead_out_seconds: float = 2
+) -> tuple[list[list[Song]], int]:
+    """
+    Verteilt Songs auf Playlists mit Unterstützung für explizite Zuweisung.
+
+    Songs mit "Playlist X" im dancer_name werden der entsprechenden Playlist zugewiesen.
+    Restliche Songs werden nach dem gewählten Verteilungsmodus verteilt.
+
+    Args:
+        songs: Liste von Songs
+        num_playlists: Anzahl der Playlists
+        distribution_mode: 1=Fair, 2=Sequential, 3=Duration
+        lead_in_seconds: Sekunden vor dem Start-Timestamp (für Duration-Modus)
+        lead_out_seconds: Sekunden nach dem End-Timestamp (für Duration-Modus)
+
+    Returns:
+        Tuple aus:
+        - Liste von Playlists (jede Playlist ist eine Liste von Songs)
+        - Anzahl der explizit zugewiesenen Songs
+    """
+    if num_playlists <= 0:
+        raise ValueError("Anzahl der Playlists muss mindestens 1 sein")
+
+    if not songs:
+        return [[] for _ in range(num_playlists)], 0
+
+    # 1. Songs mit expliziter Zuweisung extrahieren
+    explicit_songs = defaultdict(list)  # playlist_num -> [songs]
+    remaining_songs = []
+
+    for song in songs:
+        if song.assigned_playlist and 1 <= song.assigned_playlist <= num_playlists:
+            explicit_songs[song.assigned_playlist].append(song)
+        else:
+            remaining_songs.append(song)
+
+    explicit_count = sum(len(s) for s in explicit_songs.values())
+
+    # 2. Restliche Songs nach gewähltem Modus verteilen
+    if distribution_mode == 2:
+        playlists = distribute_songs_sequentially(remaining_songs, num_playlists)
+    elif distribution_mode == 3:
+        playlists = distribute_songs_by_duration(
+            remaining_songs, num_playlists, lead_in_seconds, lead_out_seconds
+        )
+    else:
+        playlists = distribute_songs_fairly(remaining_songs, num_playlists)
+
+    # 3. Explizit zugewiesene Songs hinzufügen (am Ende der jeweiligen Playlist)
+    for playlist_num, assigned_songs in explicit_songs.items():
+        playlists[playlist_num - 1].extend(assigned_songs)
+
+    return playlists, explicit_count
+
+
 def move_song_to_last(playlist: list[Song], index: int) -> list[Song]:
     """
     Verschiebt einen Song ans Ende der Playlist.

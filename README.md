@@ -13,6 +13,7 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
   - **Fair**: Artist-balanciert, gemischt
   - **Sequential**: Excel-Reihenfolge beibehalten
   - **Duration**: Gleiche Gesamtdauer pro Playlist (Greedy-Algorithmus)
+- **Explizite Playlist-Zuweisung** - Songs mit "Playlist X" im Requester-Feld werden der entsprechenden Playlist zugewiesen
 - **Output-Ordner Versionierung** - Automatische Version 1, 2, 3... bei wiederholter Ausführung
 - **Interaktive Last-Song-Auswahl** - wähle den Abschluss-Song für jede Playlist
 - Normalisierte Dateinamen (lowercase, keine Leerzeichen/Sonderzeichen)
@@ -65,7 +66,7 @@ Erstelle eine Excel-Datei (z.B. `request.xlsx`) mit folgenden Spalten:
 | B | Artist |
 | C | Titel |
 | D | Description/Songpart (z.B. "Chorus", "Chorus 2, Dancebreak") |
-| E | Requester/Dancer Name |
+| E | Requester/Dancer Name (optional: "Playlist X" für explizite Zuweisung) |
 | F | Start: Minute |
 | G | Start: Second |
 | H | End: Minute |
@@ -78,6 +79,9 @@ Erstelle eine Excel-Datei (z.B. `request.xlsx`) mit folgenden Spalten:
 - Dateinamen werden normalisiert: "NewJeans - Hype Boy!" → `newjeans-hypeboy.mp3`
   - Verhindert Duplikate durch Schreibvarianten (z.B. "Stray Kids" vs "Straykids")
 - Wenn "Dancebreak" in der Description steht, wird `dancebreak.mp3` vor dem Song eingefügt
+- **Explizite Playlist-Zuweisung**: Schreibe "Playlist X" (z.B. "Playlist 3") ins Requester-Feld, um einen Song einer bestimmten Playlist zuzuweisen
+  - Beispiel: `ilovetheworld Playlist 3` → Song wird in Playlist 3 platziert
+  - Songs ohne "Playlist X" werden normal nach dem Verteilungsmodus verteilt
 
 ## Assets vorbereiten
 

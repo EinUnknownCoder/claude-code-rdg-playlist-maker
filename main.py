@@ -9,7 +9,7 @@ from validate import validate_url, format_validation_errors, ValidationResult
 from download import download_song, is_downloaded, get_download_path
 from audio import build_playlist_audio, export_audio, generate_chapters_text
 from video import create_video, check_ffmpeg
-from distribute import distribute_songs_fairly, distribute_songs_sequentially, distribute_songs_by_duration, move_song_to_last
+from distribute import distribute_with_explicit_assignments, move_song_to_last
 
 
 # ========================================
@@ -301,15 +301,16 @@ def main():
     # 3. Songs auf Playlists verteilen
     print("\n" + "-" * 50)
 
-    if distribution_mode == 2:
-        print(f"Verteile {len(valid_songs)} Songs sequentiell auf {num_playlists} Playlists...\n")
-        playlists = distribute_songs_sequentially(valid_songs, num_playlists)
-    elif distribution_mode == 3:
-        print(f"Verteile {len(valid_songs)} Songs nach Dauer auf {num_playlists} Playlists...\n")
-        playlists = distribute_songs_by_duration(valid_songs, num_playlists, lead_in_seconds, lead_out_seconds)
-    else:
-        print(f"Verteile {len(valid_songs)} Songs fair auf {num_playlists} Playlists...\n")
-        playlists = distribute_songs_fairly(valid_songs, num_playlists)
+    mode_names = {1: "fair", 2: "sequentiell", 3: "nach Dauer"}
+    mode_name = mode_names.get(distribution_mode, "fair")
+    print(f"Verteile {len(valid_songs)} Songs {mode_name} auf {num_playlists} Playlists...\n")
+
+    playlists, explicit_count = distribute_with_explicit_assignments(
+        valid_songs, num_playlists, distribution_mode, lead_in_seconds, lead_out_seconds
+    )
+
+    if explicit_count > 0:
+        print(f"  → {explicit_count} Song(s) wurden explizit zugewiesen (via 'Playlist X' im Requester-Feld)\n")
 
     for i, playlist in enumerate(playlists, 1):
         artists = set(s.artist for s in playlist)
