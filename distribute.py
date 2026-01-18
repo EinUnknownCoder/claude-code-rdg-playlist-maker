@@ -83,6 +83,56 @@ def distribute_songs_sequentially(songs: list[Song], num_playlists: int) -> list
     return playlists
 
 
+def distribute_songs_by_duration(
+    songs: list[Song],
+    num_playlists: int,
+    lead_in_seconds: float = 8,
+    lead_out_seconds: float = 2
+) -> list[list[Song]]:
+    """
+    Verteilt Songs so, dass alle Playlists ungefähr gleich lang sind.
+
+    Algorithmus: Greedy - längste Songs zuerst, immer zur kürzesten Playlist.
+
+    Args:
+        songs: Liste von Songs
+        num_playlists: Anzahl der Playlists
+        lead_in_seconds: Sekunden vor dem Start-Timestamp
+        lead_out_seconds: Sekunden nach dem End-Timestamp
+
+    Returns:
+        Liste von Playlists (jede Playlist ist eine Liste von Songs)
+    """
+    if num_playlists <= 0:
+        raise ValueError("Anzahl der Playlists muss mindestens 1 sein")
+
+    if not songs:
+        return [[] for _ in range(num_playlists)]
+
+    def get_song_duration(song: Song) -> float:
+        base = song.end_seconds - song.start_seconds
+        return base + lead_in_seconds + lead_out_seconds
+
+    # Playlists mit Dauer-Tracking
+    playlists = [[] for _ in range(num_playlists)]
+    durations = [0.0 for _ in range(num_playlists)]
+
+    # Längste Songs zuerst für bessere Verteilung
+    sorted_songs = sorted(songs, key=get_song_duration, reverse=True)
+
+    # Greedy: Immer zur kürzesten Playlist
+    for song in sorted_songs:
+        min_idx = durations.index(min(durations))
+        playlists[min_idx].append(song)
+        durations[min_idx] += get_song_duration(song)
+
+    # Shuffle innerhalb jeder Playlist für Abwechslung
+    for playlist in playlists:
+        random.shuffle(playlist)
+
+    return playlists
+
+
 def get_distribution_stats(playlists: list[list[Song]]) -> dict:
     """
     Gibt Statistiken über die Verteilung zurück.

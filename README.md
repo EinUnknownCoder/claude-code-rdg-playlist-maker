@@ -9,9 +9,11 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
 - Audio-Normalisierung (einheitliche Lautstärke)
 - Einlauf- und Auslaufzeit für jeden Song
 - Fade-In und Fade-Out
-- Zwei Verteilungsmodi:
+- Drei Verteilungsmodi:
   - **Fair**: Artist-balanciert, gemischt
   - **Sequential**: Excel-Reihenfolge beibehalten
+  - **Duration**: Gleiche Gesamtdauer pro Playlist (Greedy-Algorithmus)
+- **Output-Ordner Versionierung** - Automatische Version 1, 2, 3... bei wiederholter Ausführung
 - **Interaktive Last-Song-Auswahl** - wähle den Abschluss-Song für jede Playlist
 - Normalisierte Dateinamen (lowercase, keine Leerzeichen/Sonderzeichen)
 - MP3 und MP4 Export mit **Fortschrittsanzeige**
@@ -100,11 +102,12 @@ Das Programm fragt nach folgenden Eingaben (Enter für Standardwert):
 | Anzahl Playlists | `4` | Auf wie viele Playlists verteilt wird |
 | Einlaufzeit | `8` Sekunden | Zeit vor dem Start-Timestamp |
 | Auslaufzeit | `2` Sekunden | Zeit nach dem End-Timestamp |
-| Verteilungsmodus | `1` (Fair) | `1` = Fair (gemischt), `2` = Sequential (Excel-Reihenfolge) |
-| Output-Ordner | `output` | Wo die Dateien gespeichert werden |
+| Verteilungsmodus | `3` (Duration) | `1` = Fair, `2` = Sequential, `3` = Duration (gleiche Dauer) |
+| Output-Ordner Basispfad | `output` | Basisordner für Output |
+| Projekt-Name | (erforderlich) | z.B. "2601 Pforzheim" → erstellt "output/2601 Pforzheim Version 1/" |
 | Assets-Ordner | `assets` | Wo die Assets liegen |
 | URL-Validierung überspringen | `N` (Nein) | `J` = Überspringen, `N` = Normale Validierung |
-| Browser für Cookies | `chrome` | Browser für Cookie-Import (`chrome`, `firefox`, `edge`, oder leer) |
+| Browser für Cookies | `safari` | Browser für Cookie-Import (`safari`, `chrome`, `firefox`, `edge`, oder leer) |
 
 ## Ablauf
 
@@ -118,6 +121,7 @@ Das Programm fragt nach folgenden Eingaben (Enter für Standardwert):
 3. **Playlist-Erstellung**:
    - **Fair Mode**: Songs werden artist-balanciert gemischt (kein Artist dominiert)
    - **Sequential Mode**: Songs bleiben in Excel-Reihenfolge, gleichmäßig auf N Playlists aufgeteilt
+   - **Duration Mode**: Songs werden so verteilt, dass alle Playlists gleich lang sind
 
 4. **Audio-Verarbeitung**:
    - Lautstärke-Normalisierung
@@ -132,14 +136,17 @@ Das Programm fragt nach folgenden Eingaben (Enter für Standardwert):
 
 ```
 output/
-├── playlist_1.mp3
-├── playlist_1.mp4
-├── playlist_2.mp3
-├── playlist_2.mp4
-├── ...
-├── chapters.txt
-└── errors.txt         (nur bei Fehlern)
+└── 2601 Pforzheim Version 1/
+    ├── playlist_1.mp3
+    ├── playlist_1.mp4
+    ├── playlist_2.mp3
+    ├── playlist_2.mp4
+    ├── ...
+    ├── chapters.txt
+    └── errors.txt         (nur bei Fehlern)
 ```
+
+Bei wiederholter Ausführung mit dem gleichen Projekt-Namen wird automatisch die nächste Version erstellt (z.B. "2601 Pforzheim Version 2").
 
 Die `chapters.txt` enthält YouTube-Chapters für alle Playlists und Hashtags:
 
@@ -168,14 +175,12 @@ Die Hashtags sind alphabetisch sortiert und werden nach Normalisierung deduplizi
 ### YouTube Bot-Detection ("Sign in to confirm you're not a bot")
 YouTube blockiert manchmal yt-dlp Anfragen als Bot-Schutz. **Lösung**:
 
-Das Programm verwendet **automatisch Cookies aus deinem Browser** (Standard: Chrome).
+Das Programm verwendet **automatisch Cookies aus deinem Browser** (Standard: Safari).
 - Stelle sicher, dass du in YouTube im Browser eingeloggt bist
-- Beim Programmstart wird nach dem Browser gefragt (chrome/firefox/edge)
+- Beim Programmstart wird nach dem Browser gefragt (safari/chrome/firefox/edge)
 - Die Cookies werden automatisch importiert
 
-**Unterstützte Browser**: Chrome (empfohlen), Firefox, Edge, Opera, Brave
-
-**⚠️ Safari funktioniert NICHT auf macOS** (Sandbox-Schutz verhindert Cookie-Zugriff)
+**Unterstützte Browser**: Safari (empfohlen auf macOS), Chrome, Firefox, Edge, Opera, Brave
 
 ### JavaScript Challenge Errors ("Signature solving failed")
 YouTube verwendet JavaScript-basierte Anti-Bot-Mechanismen. **Lösung**:

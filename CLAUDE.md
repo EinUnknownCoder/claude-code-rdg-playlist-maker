@@ -10,7 +10,7 @@ Python-CLI zur Erstellung von K-Pop Random Dance Game Playlists. Das Programm li
 - `download.py` - YouTube-Download mit yt-dlp
 - `audio.py` - Audio-Schnitt, Normalisierung, Fade-In/Out, Zusammenfügung mit pydub
 - `video.py` - MP4-Erstellung mit ffmpeg (Standbild + Audio)
-- `distribute.py` - Song-Verteilung auf Playlists (Fair: Artist-balanciert, Sequential: Excel-Reihenfolge)
+- `distribute.py` - Song-Verteilung auf Playlists (Fair: Artist-balanciert, Sequential: Excel-Reihenfolge, Duration: gleiche Dauer)
 
 ## Datenfluss
 1. Excel einlesen → Liste von Song-Objekten (URLs werden bereinigt: `&list=` entfernt)
@@ -18,7 +18,7 @@ Python-CLI zur Erstellung von K-Pop Random Dance Game Playlists. Das Programm li
    - Prüfe ob bereits heruntergeladen (gecacht)
    - Falls nein: URL validieren (optional überspringbar), dann downloaden
 3. Falls Fehler: STOP, zeige alle Fehler + erstelle `errors.txt`, bereits geladene Songs bleiben gecacht
-4. Songs auf X Playlists verteilen (Fair: Round-Robin nach Artist, Sequential: Excel-Reihenfolge)
+4. Songs auf X Playlists verteilen (Fair: Round-Robin nach Artist, Sequential: Excel-Reihenfolge, Duration: gleiche Dauer)
 5. Pro Playlist: Audio zusammenfügen mit Transitions und Effekten
 6. MP3 und MP4 exportieren
 7. chapters.txt generieren (YouTube-Chapter-Format)
@@ -73,13 +73,13 @@ Erwartete Spalten (Reihenfolge):
   - `assets/countdown/` - three.mp3, dancebreak.mp3
   - `assets/cover/` - Cover-Bilder für Video-Export (PforzheimRPD.jpg, RDGStuttgart2.jpg, etc.)
 - Downloads werden gecacht in `downloads/` (Dateiname: `artist-title.mp3`, lowercase, normalisiert)
-- Output geht nach `output/` (playlist_1.mp3, playlist_1.mp4, ..., chapters.txt, errors.txt)
+- Output geht nach `output/{Projektname} Version X/` (playlist_1.mp3, playlist_1.mp4, ..., chapters.txt, errors.txt)
 - **Standardwerte** (in `main.py` am Anfang der Datei leicht änderbar):
   - Excel: request.xlsx
   - Playlists: 4
   - Einlauf: 8s
   - Auslauf: 2s
-  - Verteilungsmodus: 1 (Fair)
+  - Verteilungsmodus: 3 (Duration)
   - Skip Validation: N (Nein)
   - Browser: safari (für Cookie-Import)
   - Cover: PforzheimRPD.jpg
@@ -118,11 +118,22 @@ python main.py
 
 ## Neue Funktionen (2025-01)
 
+### Output-Ordner Versionierung
+- Fragt nach Projekt-Name (z.B. "2601 Pforzheim")
+- Automatische Versionierung: "Version 1", "Version 2", etc.
+- Zeigt bestehende Ordner an
+- Erstellt automatisch den nächsten verfügbaren Ordner
+- **`get_output_folder_with_versioning()`** (main.py): Verwaltet die Versionierung
+
 ### Song-Verteilung
-- **`distribute_songs_fairly()`** (distribute.py): Artist-balanciert, gemischt (Standard)
-- **`distribute_songs_sequentially()`** (distribute.py): Excel-Reihenfolge beibehalten, gleichmäßig auf N Playlists
+- **`distribute_songs_fairly()`** (distribute.py): Artist-balanciert, gemischt (Modus 1)
+- **`distribute_songs_sequentially()`** (distribute.py): Excel-Reihenfolge beibehalten (Modus 2)
   - Berechnet Songs pro Playlist: `len(songs) // num_playlists`
   - Rest-Songs werden auf erste Playlists verteilt
+- **`distribute_songs_by_duration()`** (distribute.py): Gleiche Gesamtdauer pro Playlist (Modus 3, Standard)
+  - Berücksichtigt Einlauf- und Auslaufzeit pro Song
+  - Greedy-Algorithmus: Längste Songs zuerst, immer zur kürzesten Playlist
+  - Shuffle innerhalb jeder Playlist für Abwechslung
 
 ### Workflow-Optimierung
 - **Cache-First Approach**: Prüft zuerst ob Song bereits heruntergeladen ist

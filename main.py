@@ -9,7 +9,7 @@ from validate import validate_url, format_validation_errors, ValidationResult
 from download import download_song, is_downloaded, get_download_path
 from audio import build_playlist_audio, export_audio, generate_chapters_text
 from video import create_video, check_ffmpeg
-from distribute import distribute_songs_fairly, distribute_songs_sequentially, move_song_to_last
+from distribute import distribute_songs_fairly, distribute_songs_sequentially, distribute_songs_by_duration, move_song_to_last
 
 
 # ========================================
@@ -19,7 +19,7 @@ DEFAULT_EXCEL = "request.xlsx"
 DEFAULT_PLAYLISTS = 4
 DEFAULT_LEAD_IN = 8  # Sekunden vor Start-Timestamp
 DEFAULT_LEAD_OUT = 2  # Sekunden nach End-Timestamp
-DEFAULT_DISTRIBUTION_MODE = 1  # 1=Fair, 2=Sequential
+DEFAULT_DISTRIBUTION_MODE = 3  # 1=Fair, 2=Sequential, 3=Duration
 DEFAULT_OUTPUT_DIR = "output"
 DEFAULT_ASSETS_DIR = "assets"
 DEFAULT_BROWSER = "safari"
@@ -50,6 +50,51 @@ def get_int_with_default(prompt: str, default: int) -> int:
             return int(user_input)
         except ValueError:
             print("Bitte eine Zahl eingeben.")
+
+
+def get_output_folder_with_versioning(base_dir: str = "output") -> str:
+    """
+    Fragt nach Projekt-Name und erstellt versionierten Ordner.
+
+    Returns:
+        Vollständiger Pfad zum Output-Ordner (z.B. "output/2601 Pforzheim Version 3")
+    """
+    import re
+
+    # Zeige bestehende Ordner
+    if os.path.exists(base_dir):
+        existing = sorted([d for d in os.listdir(base_dir)
+                          if os.path.isdir(os.path.join(base_dir, d))])
+        if existing:
+            print(f"\nBestehende Ordner in {base_dir}/:")
+            for folder in existing:
+                print(f"  - {folder}")
+            print()
+
+    # Projekt-Name abfragen
+    project_name = input("Projekt-Name (z.B. '2601 Pforzheim'): ").strip()
+    if not project_name:
+        print("FEHLER: Projekt-Name darf nicht leer sein!")
+        sys.exit(1)
+
+    # Finde höchste existierende Version
+    pattern = re.compile(rf'^{re.escape(project_name)} Version (\d+)$')
+    max_version = 0
+
+    if os.path.exists(base_dir):
+        for folder in os.listdir(base_dir):
+            match = pattern.match(folder)
+            if match:
+                version = int(match.group(1))
+                max_version = max(max_version, version)
+
+    # Nächste Version
+    next_version = max_version + 1
+    folder_name = f"{project_name} Version {next_version}"
+    full_path = os.path.join(base_dir, folder_name)
+
+    print(f"\n-> Erstelle: {full_path}/")
+    return full_path
 
 
 def select_last_songs(playlists: list) -> list:
@@ -122,9 +167,12 @@ def main():
     print("\nVerteilungsmodus:")
     print("  1 = Fair (Artist-balanciert, gemischt)")
     print("  2 = Sequential (Excel-Reihenfolge beibehalten)")
+    print("  3 = Duration (gleiche Gesamtdauer pro Playlist)")
     distribution_mode = get_int_with_default("Modus", DEFAULT_DISTRIBUTION_MODE)
 
-    output_dir = get_input_with_default("Output-Ordner", DEFAULT_OUTPUT_DIR)
+    # Output-Ordner mit Versionierung
+    output_base = get_input_with_default("Output-Ordner Basispfad", DEFAULT_OUTPUT_DIR)
+    output_dir = get_output_folder_with_versioning(output_base)
     assets_dir = get_input_with_default("Assets-Ordner", DEFAULT_ASSETS_DIR)
 
     # URL-Validierung überspringen?
@@ -256,13 +304,18 @@ def main():
     if distribution_mode == 2:
         print(f"Verteile {len(valid_songs)} Songs sequentiell auf {num_playlists} Playlists...\n")
         playlists = distribute_songs_sequentially(valid_songs, num_playlists)
+    elif distribution_mode == 3:
+        print(f"Verteile {len(valid_songs)} Songs nach Dauer auf {num_playlists} Playlists...\n")
+        playlists = distribute_songs_by_duration(valid_songs, num_playlists, lead_in_seconds, lead_out_seconds)
     else:
         print(f"Verteile {len(valid_songs)} Songs fair auf {num_playlists} Playlists...\n")
         playlists = distribute_songs_fairly(valid_songs, num_playlists)
 
     for i, playlist in enumerate(playlists, 1):
         artists = set(s.artist for s in playlist)
-        print(f"Playlist {i}: {len(playlist)} Songs von {len(artists)} Artists")
+        duration_sec = sum((s.end_seconds - s.start_seconds + lead_in_seconds + lead_out_seconds) for s in playlist)
+        duration_min = duration_sec / 60
+        print(f"Playlist {i}: {len(playlist)} Songs, ~{duration_min:.1f} min, {len(artists)} Artists")
 
     # Letzten Song für jede Playlist auswählen
     playlists = select_last_songs(playlists)
