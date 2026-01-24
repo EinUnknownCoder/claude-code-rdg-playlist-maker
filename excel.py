@@ -68,7 +68,13 @@ def read_excel(filepath: str) -> list[Song]:
     9. End: Seconds
     """
     wb = load_workbook(filepath, read_only=True, data_only=True)
-    ws = wb.active
+    # Verwende "Edited" > "Songlist" > aktives Sheet (in dieser Priorität)
+    if "Edited" in wb.sheetnames:
+        ws = wb["Edited"]
+    elif "Songlist" in wb.sheetnames:
+        ws = wb["Songlist"]
+    else:
+        ws = wb.active
 
     songs = []
 
@@ -106,8 +112,8 @@ def read_excel(filepath: str) -> list[Song]:
         start_seconds = start_min * 60 + start_sec
         end_seconds = end_min * 60 + end_sec
 
-        # Überspringe Zeilen ohne URL
-        if not youtube_url:
+        # Überspringe Zeilen ohne gültige URL (muss mit http beginnen)
+        if not youtube_url or not youtube_url.startswith("http"):
             continue
 
         song = Song(

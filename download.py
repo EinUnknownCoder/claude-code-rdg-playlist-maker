@@ -70,6 +70,8 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         'source_address': '0.0.0.0',  # Bind to all interfaces
         # Format-Auswahl nicht zu strikt
         'allow_unplayable_formats': False,
+        # JavaScript Runtime für YouTube-Challenges (node muss installiert sein)
+        'extractor_args': {'youtube': {'js_runtimes': ['node']}},
     }
 
     # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)
