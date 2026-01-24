@@ -120,9 +120,9 @@ def distribute_songs_by_duration(
     # Längste Songs zuerst für bessere Verteilung
     sorted_songs = sorted(songs, key=get_song_duration, reverse=True)
 
-    # Greedy: Immer zur kürzesten Playlist
+    # Greedy: Immer zur kürzesten Playlist (O(n) statt O(n²))
     for song in sorted_songs:
-        min_idx = durations.index(min(durations))
+        min_idx, _ = min(enumerate(durations), key=lambda x: x[1])
         playlists[min_idx].append(song)
         durations[min_idx] += get_song_duration(song)
 

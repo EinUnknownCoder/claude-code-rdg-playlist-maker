@@ -2,6 +2,7 @@
 
 import os
 import sys
+from typing import Optional
 
 from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
@@ -10,24 +11,19 @@ from download import download_song, is_downloaded, get_download_path
 from audio import build_playlist_audio, export_audio, generate_chapters_text
 from video import create_video, check_ffmpeg
 from distribute import distribute_with_explicit_assignments, move_song_to_last
+from config import PlaylistConfig
+from constants import (
+    DEFAULT_EXCEL, DEFAULT_PLAYLISTS, DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT,
+    DEFAULT_DISTRIBUTION_MODE, DEFAULT_OUTPUT_DIR, DEFAULT_ASSETS_DIR,
+    DEFAULT_BROWSER, DEFAULT_COVER
+)
 
 
-# ========================================
-# STANDARDWERTE - Hier einfach anpassen!
-# ========================================
-DEFAULT_EXCEL = "request.xlsx"
-DEFAULT_PLAYLISTS = 4
-DEFAULT_LEAD_IN = 8  # Sekunden vor Start-Timestamp
-DEFAULT_LEAD_OUT = 2  # Sekunden nach End-Timestamp
-DEFAULT_DISTRIBUTION_MODE = 3  # 1=Fair, 2=Sequential, 3=Duration
-DEFAULT_OUTPUT_DIR = "output"
-DEFAULT_ASSETS_DIR = "assets"
-DEFAULT_BROWSER = "safari"
-DEFAULT_COVER = "PforzheimRPD.jpg"  # Cover-Bild für Video-Export
-# ========================================
+# ==============================================
+# Hilfsfunktionen für CLI-Eingaben
+# ==============================================
 
-
-def print_header():
+def print_header() -> None:
     """Zeigt den Header an."""
     print("\n" + "=" * 50)
     print("  RDG Playlist Maker")
@@ -97,7 +93,7 @@ def get_output_folder_with_versioning(base_dir: str = "output") -> str:
     return full_path
 
 
-def select_last_songs(playlists: list) -> list:
+def select_last_songs(playlists: list[list[Song]]) -> list[list[Song]]:
     """
     Ermöglicht dem Benutzer, für jede Playlist den letzten Song auszuwählen.
 
@@ -146,16 +142,17 @@ def select_last_songs(playlists: list) -> list:
     return result
 
 
-def main():
-    print_header()
+# ==============================================
+# Phasen-Funktionen
+# ==============================================
 
-    # Prüfe ffmpeg
-    if not check_ffmpeg():
-        print("FEHLER: ffmpeg ist nicht installiert!")
-        print("Bitte installiere es mit: brew install ffmpeg")
-        sys.exit(1)
+def phase_gather_inputs() -> PlaylistConfig:
+    """
+    Phase 1: Sammelt alle CLI-Eingaben vom Benutzer.
 
-    # Eingaben mit Standardwerten
+    Returns:
+        PlaylistConfig mit allen Einstellungen
+    """
     print("Drücke Enter für Standardwerte:\n")
 
     excel_path = get_input_with_default("Excel-Datei", DEFAULT_EXCEL)
@@ -193,39 +190,62 @@ def main():
     print("  [leer] = Keine Cookies verwenden")
     browser_input = get_input_with_default("Browser", DEFAULT_BROWSER).strip().lower()
 
-    browser = browser_input if browser_input in ['safari', 'chrome', 'firefox', 'edge', 'opera', 'brave'] else None
+    browser: Optional[str] = browser_input if browser_input in ['safari', 'chrome', 'firefox', 'edge', 'opera', 'brave'] else None
 
     if browser:
         print(f"✓ Verwende Cookies aus {browser.title()}")
     else:
         print("⚠ Keine Browser-Cookies - kann bei YouTube Bot-Detection fehlschlagen")
 
-    # Pfade zu Assets (Unterordner: countdown/, cover/)
-    three_mp3 = os.path.join(assets_dir, "countdown", "three.mp3")
-    dancebreak_mp3 = os.path.join(assets_dir, "countdown", "dancebreak.mp3")
-    image_path = os.path.join(assets_dir, "cover", DEFAULT_COVER)
+    return PlaylistConfig(
+        excel_path=excel_path,
+        num_playlists=num_playlists,
+        lead_in_seconds=lead_in_seconds,
+        lead_out_seconds=lead_out_seconds,
+        distribution_mode=distribution_mode,
+        output_dir=output_dir,
+        assets_dir=assets_dir,
+        browser=browser,
+        skip_validation=skip_validation
+    )
+
+
+def phase_validate_prerequisites(config: PlaylistConfig) -> None:
+    """
+    Phase 2: Prüft alle Voraussetzungen.
+
+    Beendet das Programm bei Fehlern.
+    """
+    # Prüfe ffmpeg
+    if not check_ffmpeg():
+        print("FEHLER: ffmpeg ist nicht installiert!")
+        print("Bitte installiere es mit: brew install ffmpeg")
+        sys.exit(1)
 
     print("\n" + "-" * 50)
     print("Prüfe Voraussetzungen...")
 
     # Prüfe ob Dateien existieren
-    if not os.path.exists(excel_path):
-        print(f"FEHLER: Excel-Datei nicht gefunden: {excel_path}")
+    errors = config.validate()
+    if errors:
+        for error in errors:
+            print(f"FEHLER: {error}")
         sys.exit(1)
-
-    for asset, name in [(three_mp3, "countdown/three.mp3"), (dancebreak_mp3, "countdown/dancebreak.mp3"),
-                        (image_path, f"cover/{DEFAULT_COVER}")]:
-        if not os.path.exists(asset):
-            print(f"FEHLER: Asset nicht gefunden: {name}")
-            sys.exit(1)
 
     print("Alle Dateien gefunden!")
 
-    # 1. Excel einlesen
-    print("\n" + "-" * 50)
-    print(f"Lese {excel_path}...")
 
-    songs = read_excel(excel_path)
+def phase_parse_excel(config: PlaylistConfig) -> list[Song]:
+    """
+    Phase 3: Liest und validiert die Excel-Datei.
+
+    Returns:
+        Liste von Song-Objekten
+    """
+    print("\n" + "-" * 50)
+    print(f"Lese {config.excel_path}...")
+
+    songs = read_excel(config.excel_path)
     print(f"{len(songs)} Songs gefunden")
 
     # Timestamps validieren
@@ -236,7 +256,19 @@ def main():
             print(f"  {error}")
         sys.exit(1)
 
-    # 2. URLs validieren und downloaden
+    return songs
+
+
+def phase_validate_and_download(
+    songs: list[Song],
+    config: PlaylistConfig
+) -> tuple[list[Song], list[ValidationResult]]:
+    """
+    Phase 4: Validiert URLs und lädt Songs herunter.
+
+    Returns:
+        Tuple von (gültige Songs, Fehler-Ergebnisse)
+    """
     print("\n" + "-" * 50)
     print("Validiere URLs und lade Songs herunter...\n")
 
@@ -253,8 +285,8 @@ def main():
             continue
 
         # URL validieren (nur wenn nicht übersprungen)
-        if not skip_validation:
-            result = validate_url(song, browser=browser)
+        if not config.skip_validation:
+            result = validate_url(song, browser=config.browser)
 
             if not result.is_valid:
                 print(f"  ✗ {result.error_message}")
@@ -266,7 +298,7 @@ def main():
         # Download versuchen
         print(f"  ⬇ Lade herunter...")
         try:
-            download_song(song, browser=browser)
+            download_song(song, browser=config.browser)
             print(f"  ✓ Heruntergeladen")
             valid_songs.append(song)
         except Exception as e:
@@ -277,36 +309,57 @@ def main():
                 error_message=f"Download fehlgeschlagen: {e}"
             ))
 
-    # Wenn Fehler gefunden, stoppen
-    if invalid_results:
-        print("\n" + "=" * 50)
-        print("STOPP: Fehlerhafte URLs gefunden!")
-        print("=" * 50)
-        error_message = format_validation_errors(invalid_results)
-        print(error_message)
+    return valid_songs, invalid_results
 
-        # Fehlerliste als Textdatei exportieren
-        os.makedirs(output_dir, exist_ok=True)
-        errors_path = os.path.join(output_dir, "errors.txt")
-        with open(errors_path, 'w', encoding='utf-8') as f:
-            f.write("RDG Playlist Maker - Fehlerliste\n")
-            f.write("=" * 50 + "\n\n")
-            f.write(error_message)
-        print(f"\nFehlerliste gespeichert: {errors_path}")
 
-        print("\nBitte korrigiere die Excel-Datei und starte erneut.")
-        print("Bereits heruntergeladene Songs bleiben gecacht.")
-        sys.exit(1)
+def phase_handle_errors(
+    invalid_results: list[ValidationResult],
+    config: PlaylistConfig
+) -> None:
+    """
+    Behandelt Validierungs-/Download-Fehler.
 
-    # 3. Songs auf Playlists verteilen
+    Beendet das Programm nach Fehlerausgabe.
+    """
+    print("\n" + "=" * 50)
+    print("STOPP: Fehlerhafte URLs gefunden!")
+    print("=" * 50)
+    error_message = format_validation_errors(invalid_results)
+    print(error_message)
+
+    # Fehlerliste als Textdatei exportieren
+    os.makedirs(config.output_dir, exist_ok=True)
+    errors_path = os.path.join(config.output_dir, "errors.txt")
+    with open(errors_path, 'w', encoding='utf-8') as f:
+        f.write("RDG Playlist Maker - Fehlerliste\n")
+        f.write("=" * 50 + "\n\n")
+        f.write(error_message)
+    print(f"\nFehlerliste gespeichert: {errors_path}")
+
+    print("\nBitte korrigiere die Excel-Datei und starte erneut.")
+    print("Bereits heruntergeladene Songs bleiben gecacht.")
+    sys.exit(1)
+
+
+def phase_distribute_songs(
+    valid_songs: list[Song],
+    config: PlaylistConfig
+) -> list[list[Song]]:
+    """
+    Phase 5: Verteilt Songs auf Playlists.
+
+    Returns:
+        Liste von Playlists (jede Playlist ist eine Liste von Songs)
+    """
     print("\n" + "-" * 50)
 
     mode_names = {1: "fair", 2: "sequentiell", 3: "nach Dauer"}
-    mode_name = mode_names.get(distribution_mode, "fair")
-    print(f"Verteile {len(valid_songs)} Songs {mode_name} auf {num_playlists} Playlists...\n")
+    mode_name = mode_names.get(config.distribution_mode, "fair")
+    print(f"Verteile {len(valid_songs)} Songs {mode_name} auf {config.num_playlists} Playlists...\n")
 
     playlists, explicit_count = distribute_with_explicit_assignments(
-        valid_songs, num_playlists, distribution_mode, lead_in_seconds, lead_out_seconds
+        valid_songs, config.num_playlists, config.distribution_mode,
+        config.lead_in_seconds, config.lead_out_seconds
     )
 
     if explicit_count > 0:
@@ -314,76 +367,141 @@ def main():
 
     for i, playlist in enumerate(playlists, 1):
         artists = set(s.artist for s in playlist)
-        duration_sec = sum((s.end_seconds - s.start_seconds + lead_in_seconds + lead_out_seconds) for s in playlist)
+        duration_sec = sum(
+            (s.end_seconds - s.start_seconds + config.lead_in_seconds + config.lead_out_seconds)
+            for s in playlist
+        )
         duration_min = duration_sec / 60
         print(f"Playlist {i}: {len(playlist)} Songs, ~{duration_min:.1f} min, {len(artists)} Artists")
 
     # Letzten Song für jede Playlist auswählen
     playlists = select_last_songs(playlists)
 
+    return playlists
+
+
+def phase_build_playlists(
+    playlists: list[list[Song]],
+    valid_songs: list[Song],
+    config: PlaylistConfig
+) -> list[tuple[int, list[dict]]]:
+    """
+    Phase 6: Baut Audio zusammen und exportiert MP3/MP4.
+
+    Returns:
+        Liste von (playlist_nummer, chapters_liste) für alle Playlists
+    """
     # Output-Ordner erstellen
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(config.output_dir, exist_ok=True)
 
     # Song-Pfade sammeln (nach Dateiname)
     song_paths = {song.filename: get_download_path(song) for song in valid_songs}
 
-    # 4. Playlists erstellen
     print("\n" + "-" * 50)
     print("Erstelle Playlists...\n")
 
     all_chapters = []
 
     for playlist_num, playlist_songs in enumerate(playlists, 1):
-        print(f"Playlist {playlist_num}/{num_playlists}:")
+        print(f"Playlist {playlist_num}/{config.num_playlists}:")
 
         # Audio zusammenfügen mit Fortschrittsanzeige
         with tqdm(total=len(playlist_songs), desc="  Songs verarbeiten", unit="song",
                   bar_format="  {desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]") as pbar:
 
-            def progress_callback(current, total, message):
+            def progress_callback(current: int, total: int, message: str) -> None:
                 pbar.update(1)
 
             audio, chapters = build_playlist_audio(
-                playlist_songs, song_paths, three_mp3, dancebreak_mp3,
-                lead_in_seconds=lead_in_seconds,
-                lead_out_seconds=lead_out_seconds,
+                playlist_songs, song_paths,
+                config.three_mp3_path, config.dancebreak_mp3_path,
+                lead_in_seconds=config.lead_in_seconds,
+                lead_out_seconds=config.lead_out_seconds,
                 progress_callback=progress_callback
             )
 
         # MP3 exportieren
-        mp3_path = os.path.join(output_dir, f"playlist_{playlist_num}.mp3")
+        mp3_path = os.path.join(config.output_dir, f"playlist_{playlist_num}.mp3")
         print(f"  MP3 exportieren...", end=" ", flush=True)
         export_audio(audio, mp3_path)
         print("OK")
 
         # Video erstellen
-        mp4_path = os.path.join(output_dir, f"playlist_{playlist_num}.mp4")
+        mp4_path = os.path.join(config.output_dir, f"playlist_{playlist_num}.mp4")
         print(f"  Video erstellen...", end=" ", flush=True)
-        create_video(mp3_path, image_path, mp4_path)
+        create_video(mp3_path, config.image_path, mp4_path)
         print("OK")
 
         print()
 
         all_chapters.append((playlist_num, chapters))
 
-    # 5. Chapters-Datei erstellen
+    return all_chapters
+
+
+def phase_export_chapters(
+    all_chapters: list[tuple[int, list[dict]]],
+    config: PlaylistConfig
+) -> None:
+    """
+    Phase 7: Erstellt die Chapters-Datei für YouTube.
+    """
     print("\n" + "-" * 50)
     print("Erstelle Chapters-Datei...")
 
     chapters_text = generate_chapters_text(all_chapters)
-    chapters_path = os.path.join(output_dir, "chapters.txt")
+    chapters_path = os.path.join(config.output_dir, "chapters.txt")
     with open(chapters_path, 'w', encoding='utf-8') as f:
         f.write(chapters_text)
 
-    # Fertig!
+
+def print_summary(config: PlaylistConfig) -> None:
+    """Gibt die Abschlussmeldung aus."""
     print("\n" + "=" * 50)
     print("FERTIG!")
     print("=" * 50)
-    print(f"\nOutput-Ordner: {output_dir}")
-    print(f"  - {num_playlists} MP3-Dateien")
-    print(f"  - {num_playlists} MP4-Videos")
+    print(f"\nOutput-Ordner: {config.output_dir}")
+    print(f"  - {config.num_playlists} MP3-Dateien")
+    print(f"  - {config.num_playlists} MP4-Videos")
     print(f"  - chapters.txt für YouTube")
     print()
+
+
+# ==============================================
+# Hauptprogramm
+# ==============================================
+
+def main() -> None:
+    """Hauptprogramm - orchestriert alle Phasen."""
+    print_header()
+
+    # Phase 1: Eingaben sammeln
+    config = phase_gather_inputs()
+
+    # Phase 2: Voraussetzungen prüfen
+    phase_validate_prerequisites(config)
+
+    # Phase 3: Excel einlesen
+    songs = phase_parse_excel(config)
+
+    # Phase 4: URLs validieren und Songs herunterladen
+    valid_songs, invalid_results = phase_validate_and_download(songs, config)
+
+    # Fehlerbehandlung
+    if invalid_results:
+        phase_handle_errors(invalid_results, config)
+
+    # Phase 5: Songs auf Playlists verteilen
+    playlists = phase_distribute_songs(valid_songs, config)
+
+    # Phase 6: Audio zusammenfügen und exportieren
+    all_chapters = phase_build_playlists(playlists, valid_songs, config)
+
+    # Phase 7: Chapters-Datei erstellen
+    phase_export_chapters(all_chapters, config)
+
+    # Zusammenfassung
+    print_summary(config)
 
 
 if __name__ == "__main__":

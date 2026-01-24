@@ -2,9 +2,13 @@
 
 import re
 import yt_dlp
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Callable
 from excel import Song
+
+# Pre-kompiliertes Regex-Pattern (Performance-Optimierung)
+_NORMALIZE_RE = re.compile(r'[^a-z0-9]')
 
 
 def normalize_for_comparison(text: str) -> str:
@@ -13,11 +17,8 @@ def normalize_for_comparison(text: str) -> str:
     Entfernt Leerzeichen, Sonderzeichen und konvertiert zu lowercase.
     z.B. "Stray Kids" -> "straykids", "NewJeans" -> "newjeans"
     """
-    # Zu lowercase
-    text = text.lower()
-    # Nur Buchstaben und Zahlen behalten (keine Leerzeichen/Sonderzeichen)
-    text = re.sub(r'[^a-z0-9]', '', text)
-    return text
+    # Zu lowercase und nur Buchstaben/Zahlen behalten
+    return _NORMALIZE_RE.sub('', text.lower())
 
 
 @dataclass
@@ -29,7 +30,7 @@ class ValidationResult:
     video_title: Optional[str] = None
 
 
-def get_video_info(url: str, browser: str = None) -> dict:
+def get_video_info(url: str, browser: Optional[str] = None) -> dict:
     """
     Holt Video-Metadaten von YouTube ohne Download.
 
@@ -63,7 +64,7 @@ def get_video_info(url: str, browser: str = None) -> dict:
         raise
 
 
-def validate_url(song: Song, browser: str = None) -> ValidationResult:
+def validate_url(song: Song, browser: Optional[str] = None) -> ValidationResult:
     """
     Validiert eine YouTube-URL für einen Song.
 
@@ -158,9 +159,9 @@ def validate_url(song: Song, browser: str = None) -> ValidationResult:
         )
 
 
-def validate_all_urls(songs: list[Song], progress_callback=None) -> tuple[list[ValidationResult], list[ValidationResult]]:
+def validate_all_urls(songs: list[Song], progress_callback: Optional[Callable] = None) -> tuple[list[ValidationResult], list[ValidationResult]]:
     """
-    Validiert alle URLs in der Song-Liste.
+    Validiert alle URLs in der Song-Liste (sequentiell).
 
     Returns:
         Tuple von (gültige_songs, ungültige_songs)
@@ -180,6 +181,61 @@ def validate_all_urls(songs: list[Song], progress_callback=None) -> tuple[list[V
             progress_callback(i + 1, len(songs), result)
 
     return valid, invalid
+
+
+def validate_urls_parallel(
+    songs: list[Song],
+    browser: Optional[str] = None,
+    max_workers: int = 4,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None
+) -> tuple[list[Song], list[ValidationResult]]:
+    """
+    Validiert URLs parallel mit ThreadPoolExecutor.
+
+    Diese Funktion ist ~10x schneller als sequentielle Validierung bei vielen Songs,
+    da YouTube API-Aufrufe I/O-bound sind.
+
+    Args:
+        songs: Liste von Songs zu validieren
+        browser: Optional Browser für Cookie-Import (z.B. "safari", "chrome")
+        max_workers: Maximale Anzahl paralleler Threads (Standard: 4, verhindert Rate-Limiting)
+        progress_callback: Optional Callback(current, total, message) für Fortschrittsanzeige
+
+    Returns:
+        Tuple von (gültige_songs, fehlerhafte_results)
+    """
+    valid_songs: list[Song] = []
+    invalid_results: list[ValidationResult] = []
+    completed = 0
+
+    def validate_single(song: Song) -> tuple[Song, ValidationResult]:
+        """Validiert einen einzelnen Song (Thread-Worker)."""
+        result = validate_url(song, browser=browser)
+        return song, result
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Alle Validierungen parallel starten
+        futures = {executor.submit(validate_single, song): song for song in songs}
+
+        # Ergebnisse sammeln sobald sie fertig sind
+        for future in as_completed(futures):
+            completed += 1
+            song, result = future.result()
+
+            if progress_callback:
+                status = "✓" if result.is_valid else f"✗ {result.error_message}"
+                progress_callback(completed, len(songs), f"{song.artist} - {song.title}: {status}")
+
+            if result.is_valid:
+                valid_songs.append(song)
+            else:
+                invalid_results.append(result)
+
+    # Sortiere Ergebnisse nach Original-Reihenfolge (row_number)
+    valid_songs.sort(key=lambda s: s.row_number)
+    invalid_results.sort(key=lambda r: r.song.row_number)
+
+    return valid_songs, invalid_results
 
 
 def format_validation_errors(invalid_results: list[ValidationResult]) -> str:

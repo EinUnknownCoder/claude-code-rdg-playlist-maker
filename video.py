@@ -2,6 +2,7 @@
 
 import subprocess
 import shutil
+from constants import VIDEO_AUDIO_BITRATE
 
 
 def check_ffmpeg() -> bool:
@@ -47,7 +48,7 @@ def create_video(
         '-c:v', 'libx264',
         '-tune', 'stillimage',
         '-c:a', 'aac',
-        '-b:a', '192k',
+        '-b:a', VIDEO_AUDIO_BITRATE,
         '-pix_fmt', 'yuv420p',
         '-shortest',
         output_path

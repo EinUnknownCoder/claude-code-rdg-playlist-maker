@@ -4,6 +4,13 @@ import os
 from pydub import AudioSegment
 from pydub.silence import detect_silence
 from excel import Song
+from constants import (
+    TARGET_DBFS, FADE_IN_MS, FADE_OUT_MS,
+    SILENCE_THRESH_DB, MIN_SILENCE_LEN_MS
+)
+
+# Modul-Level Cache für Transition-Audios (Performance-Optimierung)
+_audio_cache: dict[str, AudioSegment] = {}
 
 
 def load_audio(filepath: str) -> AudioSegment:
@@ -11,7 +18,27 @@ def load_audio(filepath: str) -> AudioSegment:
     return AudioSegment.from_file(filepath)
 
 
-def strip_trailing_silence(audio: AudioSegment, silence_thresh: int = -40, min_silence_len: int = 100) -> AudioSegment:
+def get_cached_audio(filepath: str, strip_silence: bool = False) -> AudioSegment:
+    """
+    Lädt Audio aus Cache oder lädt und cached es.
+
+    Args:
+        filepath: Pfad zur Audio-Datei
+        strip_silence: Ob trailing silence entfernt werden soll
+
+    Returns:
+        AudioSegment (aus Cache wenn vorhanden)
+    """
+    cache_key = f"{filepath}:{strip_silence}"
+    if cache_key not in _audio_cache:
+        audio = load_audio(filepath)
+        if strip_silence:
+            audio = strip_trailing_silence(audio)
+        _audio_cache[cache_key] = audio
+    return _audio_cache[cache_key]
+
+
+def strip_trailing_silence(audio: AudioSegment, silence_thresh: int = SILENCE_THRESH_DB, min_silence_len: int = MIN_SILENCE_LEN_MS) -> AudioSegment:
     """
     Entfernt Stille am Ende eines Audio-Segments.
 
@@ -34,7 +61,7 @@ def cut_audio(audio: AudioSegment, start_seconds: float, end_seconds: float) -> 
     return audio[start_ms:end_ms]
 
 
-def normalize_audio(audio: AudioSegment, target_dBFS: float = -14.0) -> AudioSegment:
+def normalize_audio(audio: AudioSegment, target_dBFS: float = TARGET_DBFS) -> AudioSegment:
     """
     Normalisiert die Lautstärke eines Audio-Segments.
 
@@ -47,7 +74,7 @@ def normalize_audio(audio: AudioSegment, target_dBFS: float = -14.0) -> AudioSeg
 
 
 def cut_song(song: Song, audio_path: str, lead_in: float = 0, lead_out: float = 0,
-             fade_in_ms: int = 2000, fade_out_ms: int = 2000) -> AudioSegment:
+             fade_in_ms: int = FADE_IN_MS, fade_out_ms: int = FADE_OUT_MS) -> AudioSegment:
     """
     Schneidet einen Song auf die in der Excel definierten Timestamps.
 
@@ -104,10 +131,9 @@ def build_playlist_audio(
     playlist = AudioSegment.empty()
     chapters = []
 
-    three_audio = load_audio(three_mp3_path)
-    # Trailing silence entfernen für nahtlosen Übergang zum Song
-    three_audio = strip_trailing_silence(three_audio)
-    dancebreak_audio = load_audio(dancebreak_mp3_path)
+    # Transitions aus Cache laden (werden nur einmal geladen, dann wiederverwendet)
+    three_audio = get_cached_audio(three_mp3_path, strip_silence=True)
+    dancebreak_audio = get_cached_audio(dancebreak_mp3_path, strip_silence=False)
 
     for i, song in enumerate(songs):
         if progress_callback:

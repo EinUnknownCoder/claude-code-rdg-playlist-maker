@@ -3,6 +3,10 @@
 import os
 import yt_dlp
 from excel import Song
+from constants import (
+    DOWNLOAD_QUALITY, DOWNLOAD_RETRIES, DOWNLOAD_FRAGMENT_RETRIES,
+    DOWNLOAD_SLEEP_INTERVAL, DOWNLOAD_MAX_SLEEP_INTERVAL, DOWNLOAD_USER_AGENT
+)
 
 
 def get_download_path(song: Song, downloads_dir: str = "downloads") -> str:
@@ -15,7 +19,7 @@ def is_downloaded(song: Song, downloads_dir: str = "downloads") -> bool:
     return os.path.exists(get_download_path(song, downloads_dir))
 
 
-def download_song(song: Song, downloads_dir: str = "downloads", progress_callback=None, browser: str = None) -> str:
+def download_song(song: Song, downloads_dir: str = "downloads", progress_callback=None, browser: str | None = None) -> str:
     """
     Lädt einen Song von YouTube herunter.
 
@@ -45,20 +49,20 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-            'preferredquality': '128',
+            'preferredquality': DOWNLOAD_QUALITY,
         }],
         'outtmpl': temp_path,
         'quiet': True,
         'no_warnings': False,  # Zeige Warnungen für Debugging
         # Retry-Optionen für zuverlässigere Downloads
-        'retries': 10,
-        'fragment_retries': 10,
+        'retries': DOWNLOAD_RETRIES,
+        'fragment_retries': DOWNLOAD_FRAGMENT_RETRIES,
         'skip_unavailable_fragments': True,
         # Sleep interval um Rate Limiting zu vermeiden
-        'sleep_interval': 1,
-        'max_sleep_interval': 3,
+        'sleep_interval': DOWNLOAD_SLEEP_INTERVAL,
+        'max_sleep_interval': DOWNLOAD_MAX_SLEEP_INTERVAL,
         # User-Agent setzen
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'user_agent': DOWNLOAD_USER_AGENT,
         # Weitere Stabilität
         'nocheckcertificate': True,
         'ignoreerrors': False,
@@ -92,7 +96,7 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
 
 
 def download_all_songs(songs: list[Song], downloads_dir: str = "downloads",
-                       progress_callback=None, browser: str = None) -> dict[Song, str]:
+                       progress_callback=None, browser: str | None = None) -> dict[Song, str | None]:
     """
     Lädt alle Songs herunter.
 

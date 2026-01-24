@@ -4,6 +4,11 @@ from openpyxl import load_workbook
 from dataclasses import dataclass
 import re
 
+# Pre-kompilierte Regex-Patterns (Performance-Optimierung)
+_FILENAME_SANITIZE_RE = re.compile(r'[^\w]')
+_PLAYLIST_ASSIGNMENT_RE = re.compile(r'Playlist\s*(\d+)', re.IGNORECASE)
+_URL_LIST_PARAM_RE = re.compile(r'&list=[^&]*')
+
 
 @dataclass
 class Song:
@@ -26,14 +31,14 @@ class Song:
     def filename(self) -> str:
         """Generiert einen sicheren Dateinamen für den Song."""
         # Entferne alle Sonderzeichen UND Leerzeichen, konvertiere zu lowercase
-        safe_artist = re.sub(r'[^\w]', '', self.artist).lower()
-        safe_title = re.sub(r'[^\w]', '', self.title).lower()
+        safe_artist = _FILENAME_SANITIZE_RE.sub('', self.artist).lower()
+        safe_title = _FILENAME_SANITIZE_RE.sub('', self.title).lower()
         return f"{safe_artist}-{safe_title}.mp3"
 
     @property
     def assigned_playlist(self) -> int | None:
         """Extrahiert explizite Playlist-Nummer aus dancer_name (z.B. 'ilovetheworld Playlist 3' → 3)."""
-        match = re.search(r'Playlist\s*(\d+)', self.dancer_name, re.IGNORECASE)
+        match = _PLAYLIST_ASSIGNMENT_RE.search(self.dancer_name)
         if match:
             return int(match.group(1))
         return None
@@ -82,7 +87,7 @@ def read_excel(filepath: str) -> list[Song]:
 
         youtube_url = str(values[0]).strip() if values[0] else ""
         # Entferne Playlist-Parameter aus URL
-        youtube_url = re.sub(r'&list=[^&]*', '', youtube_url)
+        youtube_url = _URL_LIST_PARAM_RE.sub('', youtube_url)
         artist = str(values[1]).strip() if values[1] else ""
         title = str(values[2]).strip() if values[2] else ""
         description = str(values[3]).strip() if values[3] else ""
