@@ -9,7 +9,8 @@ from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
 from validate import validate_url, format_validation_errors, ValidationResult
 from download import download_song, is_downloaded, get_download_path, is_local_file, get_source_path
-from audio import build_playlist_audio, export_audio, generate_chapters_text, cut_song, FADE_IN_MS, FADE_OUT_MS
+from pydub import AudioSegment
+from audio import build_playlist_audio, export_audio, generate_chapters_text, cut_song, get_cached_audio, FADE_IN_MS, FADE_OUT_MS
 from video import create_video, check_ffmpeg
 from distribute import distribute_with_explicit_assignments, move_song_to_last
 from config import PlaylistConfig
@@ -605,6 +606,10 @@ def phase_export_individual_songs(
         else:
             song_paths[song.filename] = get_download_path(song)
 
+    # Countdown-Audio laden
+    three_audio = get_cached_audio(config.three_mp3_path, strip_silence=True)
+    dancebreak_audio = get_cached_audio(config.dancebreak_mp3_path, strip_silence=False)
+
     print("\n" + "-" * 50)
     print("Exportiere Songs einzeln (MP3 + MP4)...\n")
 
@@ -615,12 +620,19 @@ def phase_export_individual_songs(
             continue
 
         # Song schneiden (keine Einlauf-/Auslaufzeit, optionales Fade)
-        cut_audio = cut_song(
+        cut_audio_segment = cut_song(
             song, audio_path,
             lead_in=0, lead_out=0,
             fade_in_ms=FADE_IN_MS if config.use_fade else 0,
             fade_out_ms=FADE_OUT_MS if config.use_fade else 0
         )
+
+        # Audio zusammenbauen: Dancebreak (optional) + Countdown + Song
+        final_audio = AudioSegment.empty()
+        if song.is_dancebreak:
+            final_audio += dancebreak_audio
+        final_audio += three_audio
+        final_audio += cut_audio_segment
 
         # Sicherer Dateiname (Windows-kompatibel)
         safe_artist = song.artist.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
@@ -630,7 +642,7 @@ def phase_export_individual_songs(
 
         # MP3 exportieren
         mp3_path = os.path.join(config.output_dir, f"{base_filename}.mp3")
-        export_audio(cut_audio, mp3_path)
+        export_audio(final_audio, mp3_path)
         print(f"  ✓ {base_filename}.mp3")
 
         # MP4 Video erstellen
