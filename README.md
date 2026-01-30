@@ -34,6 +34,16 @@ Ein Python-Tool zur Erstellung von K-Pop Random Dance Game Playlists mit automat
 brew install ffmpeg node
 ```
 
+### ffmpeg und Node.js installieren (Windows)
+
+1. **Node.js**: Download von https://nodejs.org/ (LTS-Version empfohlen)
+
+2. **ffmpeg**:
+   - Download von https://www.gyan.dev/ffmpeg/builds/ (essentials build)
+   - Entpacken und `bin/` Ordner zum PATH hinzufügen
+   - Oder via Chocolatey: `choco install ffmpeg`
+   - Oder via winget: `winget install ffmpeg`
+
 **Hinweis**: Node.js wird für YouTubes JavaScript-Challenges benötigt. Ohne Node.js schlagen Downloads mit "Signature solving failed" fehl.
 
 ## Installation
@@ -47,8 +57,12 @@ cd claude-code-rdg-playlist-maker
 2. Virtuelle Umgebung erstellen und aktivieren:
 ```bash
 # macOS/Linux (mit Python 3.11)
-python3.11 -m venv venv
-source venv/bin/activate
+python3.11 -m venv .venv
+source .venv/bin/activate
+
+# Windows
+python -m venv .venv
+.venv\Scripts\activate
 ```
 
 3. Abhängigkeiten installieren:
@@ -94,7 +108,12 @@ Lege folgende Dateien im `assets/` Ordner ab:
 ## Programm starten
 
 ```bash
-source venv/bin/activate
+# macOS/Linux
+source .venv/bin/activate
+python main.py
+
+# Windows
+.venv\Scripts\activate
 python main.py
 ```
 

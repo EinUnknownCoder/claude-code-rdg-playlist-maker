@@ -72,6 +72,9 @@ def download_song(song: Song, downloads_dir: str = "downloads", progress_callbac
         'allow_unplayable_formats': False,
         # JavaScript Runtime für YouTube-Challenges (node muss installiert sein)
         'extractor_args': {'youtube': {'js_runtimes': ['node']}},
+        # EJS Challenge Solver Scripts von npm laden
+        'js_runtimes': {'node': {}},
+        'remote_components': {'ejs': 'npm'},
     }
 
     # Browser-Cookies verwenden falls angegeben (gegen YouTube Bot-Detection)

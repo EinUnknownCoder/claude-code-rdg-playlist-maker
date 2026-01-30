@@ -118,11 +118,18 @@ tqdm>=4.66.0      # Fortschrittsanzeige
 
 Systemvoraussetzungen:
 - **ffmpeg** muss installiert sein (`brew install ffmpeg` auf macOS)
+- **ffmpeg** auf Windows: Download von https://www.gyan.dev/ffmpeg/builds/ oder `choco install ffmpeg` / `winget install ffmpeg`
 - **Node.js** muss installiert sein (`brew install node` auf macOS) für YouTube JavaScript-Challenge-Solving
+- **Node.js** auf Windows: Download von https://nodejs.org/ (LTS-Version)
 
 ## Testen
 ```bash
-source venv/bin/activate
+# macOS/Linux
+source .venv/bin/activate
+python main.py
+
+# Windows
+.venv\Scripts\activate
 python main.py
 ```
 
