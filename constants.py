@@ -56,6 +56,9 @@ DEFAULT_COVER = "RDGStuttgart.png"  # Cover-Bild für Video-Export
 TARGET_DBFS = -14.0  # Ziel-Lautstärke für Normalisierung
 FADE_IN_MS = 2000  # Fade-In Dauer in Millisekunden
 FADE_OUT_MS = 2000  # Fade-Out Dauer in Millisekunden
+DEFAULT_USE_FADE = True  # Fade-In/Out standardmäßig aktiviert
+DEFAULT_EXPORT_INDIVIDUAL = False  # Standard: Playlist-Export (nicht Einzelexport)
+DEFAULT_HALFTIME_MODE = False  # Halftime-Modus: 1 Song/Playlist, Sequential, kein Fade
 SILENCE_THRESH_DB = -40  # Schwellwert für Stille-Erkennung
 MIN_SILENCE_LEN_MS = 100  # Minimale Stille-Länge für Erkennung
 

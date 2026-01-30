@@ -6,7 +6,8 @@ from typing import Optional
 from constants import (
     DEFAULT_EXCEL, DEFAULT_PLAYLISTS, DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT,
     DEFAULT_DISTRIBUTION_MODE, DEFAULT_OUTPUT_DIR, DEFAULT_ASSETS_DIR,
-    DEFAULT_BROWSER, DEFAULT_COVER
+    DEFAULT_BROWSER, DEFAULT_COVER, DEFAULT_USE_FADE, DEFAULT_EXPORT_INDIVIDUAL,
+    DEFAULT_HALFTIME_MODE
 )
 
 
@@ -24,6 +25,9 @@ class PlaylistConfig:
     browser: Optional[str] = DEFAULT_BROWSER
     cover_image: str = DEFAULT_COVER
     skip_validation: bool = False
+    use_fade: bool = DEFAULT_USE_FADE
+    export_individual: bool = DEFAULT_EXPORT_INDIVIDUAL
+    halftime_mode: bool = DEFAULT_HALFTIME_MODE
 
     @property
     def three_mp3_path(self) -> str:

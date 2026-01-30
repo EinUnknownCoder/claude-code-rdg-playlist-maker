@@ -98,10 +98,10 @@ def cut_song(song: Song, audio_path: str, lead_in: float = 0, lead_out: float = 
     # Lautstärke normalisieren
     cut = normalize_audio(cut)
 
-    # Fade-In und Fade-Out anwenden (innerhalb der Song-Länge)
-    if len(cut) > fade_in_ms:
+    # Fade-In und Fade-Out anwenden (nur wenn aktiviert und Song lang genug)
+    if fade_in_ms > 0 and len(cut) > fade_in_ms:
         cut = cut.fade_in(fade_in_ms)
-    if len(cut) > fade_out_ms:
+    if fade_out_ms > 0 and len(cut) > fade_out_ms:
         cut = cut.fade_out(fade_out_ms)
 
     return cut
@@ -114,6 +114,7 @@ def build_playlist_audio(
     dancebreak_mp3_path: str,
     lead_in_seconds: float = 8,
     lead_out_seconds: float = 2,
+    use_fade: bool = True,
     progress_callback=None
 ) -> tuple[AudioSegment, list[dict]]:
     """
@@ -154,11 +155,13 @@ def build_playlist_audio(
         # Timestamp für Chapter speichern (nach three.mp3)
         chapter_timestamp = len(playlist)
 
-        # Song schneiden und einfügen (mit Einlauf-/Auslaufzeit und Fade)
+        # Song schneiden und einfügen (mit Einlauf-/Auslaufzeit und optionalem Fade)
         cut_song_audio = cut_song(
             song, audio_path,
             lead_in=lead_in_seconds,
-            lead_out=lead_out_seconds
+            lead_out=lead_out_seconds,
+            fade_in_ms=FADE_IN_MS if use_fade else 0,
+            fade_out_ms=FADE_OUT_MS if use_fade else 0
         )
         playlist += cut_song_audio
 
@@ -176,6 +179,58 @@ def build_playlist_audio(
 def export_audio(audio: AudioSegment, output_path: str, format: str = "mp3") -> None:
     """Exportiert Audio in eine Datei."""
     audio.export(output_path, format=format)
+
+
+def export_individual_songs(
+    songs: list[Song],
+    song_paths: dict[str, str],
+    output_dir: str,
+    lead_in_seconds: float = 0,
+    lead_out_seconds: float = 0,
+    use_fade: bool = False,
+    progress_callback=None
+) -> None:
+    """
+    Exportiert jeden Song einzeln als nummerierte MP3-Datei.
+
+    Args:
+        songs: Liste der Song-Objekte
+        song_paths: Dict mit filename -> audio_path Mapping
+        output_dir: Ausgabeverzeichnis
+        lead_in_seconds: Sekunden vor dem Start-Timestamp
+        lead_out_seconds: Sekunden nach dem End-Timestamp
+        use_fade: Ob Fade-In/Out angewendet werden soll
+        progress_callback: Optional callback(current, total, message)
+    """
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+
+    for i, song in enumerate(songs, 1):
+        if progress_callback:
+            progress_callback(i, len(songs), f"{song.artist} - {song.title}")
+
+        audio_path = song_paths.get(song.filename)
+        if not audio_path or not os.path.exists(audio_path):
+            print(f"  ⚠ Datei nicht gefunden: {song.filename}")
+            continue
+
+        # Song schneiden (mit optionalem Fade)
+        cut_audio = cut_song(
+            song, audio_path,
+            lead_in=lead_in_seconds,
+            lead_out=lead_out_seconds,
+            fade_in_ms=FADE_IN_MS if use_fade else 0,
+            fade_out_ms=FADE_OUT_MS if use_fade else 0
+        )
+
+        # Nummerierter Dateiname: "01 - Artist - Title.mp3"
+        safe_artist = song.artist.replace("/", "-").replace("\\", "-").replace(":", "-")
+        safe_title = song.title.replace("/", "-").replace("\\", "-").replace(":", "-")
+        output_filename = f"{i:02d} - {safe_artist} - {safe_title}.mp3"
+        output_path = os.path.join(output_dir, output_filename)
+
+        export_audio(cut_audio, output_path)
+        print(f"  ✓ {output_filename}")
 
 
 def format_timestamp(ms: int) -> str:

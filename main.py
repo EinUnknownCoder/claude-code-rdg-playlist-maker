@@ -8,15 +8,16 @@ from typing import Optional
 from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
 from validate import validate_url, format_validation_errors, ValidationResult
-from download import download_song, is_downloaded, get_download_path
-from audio import build_playlist_audio, export_audio, generate_chapters_text
+from download import download_song, is_downloaded, get_download_path, is_local_file, get_source_path
+from audio import build_playlist_audio, export_audio, generate_chapters_text, export_individual_songs
 from video import create_video, check_ffmpeg
 from distribute import distribute_with_explicit_assignments, move_song_to_last
 from config import PlaylistConfig
 from constants import (
     DEFAULT_EXCEL, DEFAULT_PLAYLISTS, DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT,
     DEFAULT_DISTRIBUTION_MODE, DEFAULT_OUTPUT_DIR, DEFAULT_ASSETS_DIR,
-    DEFAULT_BROWSER, DEFAULT_COVER
+    DEFAULT_BROWSER, DEFAULT_COVER, DEFAULT_USE_FADE, DEFAULT_EXPORT_INDIVIDUAL,
+    DEFAULT_HALFTIME_MODE
 )
 
 
@@ -155,16 +156,30 @@ def phase_gather_inputs() -> PlaylistConfig:
     print("Drücke Enter für Standardwerte:\n")
 
     excel_path = get_input_with_default("Excel-Datei", DEFAULT_EXCEL)
-    num_playlists = get_int_with_default("Anzahl Playlists", DEFAULT_PLAYLISTS)
+
+    # Halftime-Modus abfragen (1 Song pro Playlist, Sequential, kein Fade)
+    halftime_input = get_input_with_default(
+        "Halftime-Modus? (J/N)", "J" if DEFAULT_HALFTIME_MODE else "N"
+    ).strip().upper()
+    halftime_mode = halftime_input == "J"
+
+    if halftime_mode:
+        print("→ Halftime: 1 Song/Playlist, Sequential, kein Fade")
+        num_playlists = 0  # Wird später auf Anzahl Songs gesetzt
+        distribution_mode = 2  # Sequential
+        use_fade = False
+    else:
+        num_playlists = get_int_with_default("Anzahl Playlists", DEFAULT_PLAYLISTS)
+
+        # Verteilungsmodus wählen (nur wenn nicht Halftime)
+        print("\nVerteilungsmodus:")
+        print("  1 = Fair (Artist-balanciert, gemischt)")
+        print("  2 = Sequential (Excel-Reihenfolge beibehalten)")
+        print("  3 = Duration (gleiche Gesamtdauer pro Playlist)")
+        distribution_mode = get_int_with_default("Modus", DEFAULT_DISTRIBUTION_MODE)
+
     lead_in_seconds = get_int_with_default("Einlaufzeit (Sekunden vor Start)", DEFAULT_LEAD_IN)
     lead_out_seconds = get_int_with_default("Auslaufzeit (Sekunden nach Ende)", DEFAULT_LEAD_OUT)
-
-    # Verteilungsmodus wählen
-    print("\nVerteilungsmodus:")
-    print("  1 = Fair (Artist-balanciert, gemischt)")
-    print("  2 = Sequential (Excel-Reihenfolge beibehalten)")
-    print("  3 = Duration (gleiche Gesamtdauer pro Playlist)")
-    distribution_mode = get_int_with_default("Modus", DEFAULT_DISTRIBUTION_MODE)
 
     # Output-Ordner mit Versionierung
     output_base = get_input_with_default("Output-Ordner Basispfad", DEFAULT_OUTPUT_DIR)
@@ -179,6 +194,25 @@ def phase_gather_inputs() -> PlaylistConfig:
 
     if skip_validation:
         print("⚠ URL-Validierung wird übersprungen - nur Download-Check")
+
+    # Export-Modus (Playlists oder Einzelne Songs)
+    export_mode_input = get_input_with_default(
+        "Export-Modus: P=Playlists, E=Einzelne Songs", "P" if not DEFAULT_EXPORT_INDIVIDUAL else "E"
+    ).strip().upper()
+    export_individual = export_mode_input == "E"
+
+    if export_individual:
+        print("→ Exportiere jeden Song als separate Datei")
+
+    # Fade-In/Out aktivieren? (nur wenn nicht Halftime)
+    if not halftime_mode:
+        use_fade_input = get_input_with_default(
+            "Fade-In/Out aktivieren? (J/N)", "J" if DEFAULT_USE_FADE else "N"
+        ).strip().upper()
+        use_fade = use_fade_input == "J"
+
+        if not use_fade:
+            print("⚠ Fade-In/Out deaktiviert - Songs starten/enden abrupt")
 
     # Browser für Cookie-Import (gegen YouTube Bot-Detection)
     print("\nBrowser für Cookie-Import (gegen YouTube Bot-Detection):")
@@ -205,7 +239,10 @@ def phase_gather_inputs() -> PlaylistConfig:
         output_dir=output_dir,
         assets_dir=assets_dir,
         browser=browser,
-        skip_validation=skip_validation
+        skip_validation=skip_validation,
+        use_fade=use_fade,
+        export_individual=export_individual,
+        halftime_mode=halftime_mode
     )
 
 
@@ -277,7 +314,22 @@ def phase_validate_and_download(
     for i, song in enumerate(songs, 1):
         print(f"[{i}/{len(songs)}] {song.artist} - {song.title}")
 
-        # ZUERST prüfen ob bereits vorhanden
+        # Lokale Datei? → Nur prüfen ob sie existiert
+        if is_local_file(song):
+            try:
+                source_path = get_source_path(song)
+                print(f"  ✓ Lokale Datei: {os.path.basename(source_path)}")
+                valid_songs.append(song)
+            except FileNotFoundError as e:
+                print(f"  ✗ {e}")
+                invalid_results.append(ValidationResult(
+                    song=song,
+                    is_valid=False,
+                    error_message=str(e)
+                ))
+            continue
+
+        # YouTube URL: ZUERST prüfen ob bereits vorhanden
         if is_downloaded(song):
             print(f"  ✓ Bereits vorhanden")
             valid_songs.append(song)
@@ -373,8 +425,9 @@ def phase_distribute_songs(
         duration_min = duration_sec / 60
         print(f"Playlist {i}: {len(playlist)} Songs, ~{duration_min:.1f} min, {len(artists)} Artists")
 
-    # Letzten Song für jede Playlist auswählen
-    playlists = select_last_songs(playlists)
+    # Letzten Song für jede Playlist auswählen (nur wenn nicht Halftime)
+    if not config.halftime_mode:
+        playlists = select_last_songs(playlists)
 
     return playlists
 
@@ -393,8 +446,13 @@ def phase_build_playlists(
     # Output-Ordner erstellen
     os.makedirs(config.output_dir, exist_ok=True)
 
-    # Song-Pfade sammeln (nach Dateiname)
-    song_paths = {song.filename: get_download_path(song) for song in valid_songs}
+    # Song-Pfade sammeln (lokale Dateien oder Download-Cache)
+    song_paths = {}
+    for song in valid_songs:
+        if is_local_file(song):
+            song_paths[song.filename] = get_source_path(song)
+        else:
+            song_paths[song.filename] = get_download_path(song)
 
     print("\n" + "-" * 50)
     print("Erstelle Playlists...\n")
@@ -416,18 +474,32 @@ def phase_build_playlists(
                 config.three_mp3_path, config.dancebreak_mp3_path,
                 lead_in_seconds=config.lead_in_seconds,
                 lead_out_seconds=config.lead_out_seconds,
+                use_fade=config.use_fade,
                 progress_callback=progress_callback
             )
 
+        # Dateinamen generieren
+        if config.halftime_mode and len(playlist_songs) == 1:
+            # Halftime: "01 - Artist - Title (Dancer).mp3"
+            song = playlist_songs[0]
+            # Sonderzeichen entfernen die in Dateinamen nicht erlaubt sind
+            safe_artist = song.artist.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+            safe_title = song.title.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+            safe_dancer = song.dancer_name.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+            base_filename = f"{playlist_num:02d} - {safe_artist} - {safe_title} ({safe_dancer})"
+        else:
+            # Normal: "Ordnername Playlist X"
+            folder_name = os.path.basename(config.output_dir)
+            base_filename = f"{folder_name} Playlist {playlist_num}"
+
         # MP3 exportieren
-        folder_name = os.path.basename(config.output_dir)
-        mp3_path = os.path.join(config.output_dir, f"{folder_name} Playlist {playlist_num}.mp3")
+        mp3_path = os.path.join(config.output_dir, f"{base_filename}.mp3")
         print(f"  MP3 exportieren...", end=" ", flush=True)
         export_audio(audio, mp3_path)
         print("OK")
 
         # Video erstellen
-        mp4_path = os.path.join(config.output_dir, f"{folder_name} Playlist {playlist_num}.mp4")
+        mp4_path = os.path.join(config.output_dir, f"{base_filename}.mp4")
         print(f"  Video erstellen...", end=" ", flush=True)
         create_video(mp3_path, config.image_path, mp4_path)
         print("OK")
@@ -455,15 +527,50 @@ def phase_export_chapters(
         f.write(chapters_text)
 
 
-def print_summary(config: PlaylistConfig) -> None:
+def phase_export_individual_songs(
+    valid_songs: list[Song],
+    config: PlaylistConfig
+) -> None:
+    """
+    Phase 6 (Alternative): Exportiert jeden Song einzeln.
+
+    Wird verwendet wenn export_individual=True.
+    """
+    # Output-Ordner erstellen
+    os.makedirs(config.output_dir, exist_ok=True)
+
+    # Song-Pfade sammeln (lokale Dateien oder Download-Cache)
+    song_paths = {}
+    for song in valid_songs:
+        if is_local_file(song):
+            song_paths[song.filename] = get_source_path(song)
+        else:
+            song_paths[song.filename] = get_download_path(song)
+
+    print("\n" + "-" * 50)
+    print("Exportiere Songs einzeln...\n")
+
+    # Einzelexport (keine Einlauf-/Auslaufzeit, optionales Fade)
+    export_individual_songs(
+        valid_songs, song_paths, config.output_dir,
+        lead_in_seconds=0,
+        lead_out_seconds=0,
+        use_fade=config.use_fade
+    )
+
+
+def print_summary(config: PlaylistConfig, num_songs: int = None) -> None:
     """Gibt die Abschlussmeldung aus."""
     print("\n" + "=" * 50)
     print("FERTIG!")
     print("=" * 50)
     print(f"\nOutput-Ordner: {config.output_dir}")
-    print(f"  - {config.num_playlists} MP3-Dateien")
-    print(f"  - {config.num_playlists} MP4-Videos")
-    print(f"  - chapters.txt für YouTube")
+    if config.export_individual:
+        print(f"  - {num_songs} einzelne MP3-Dateien")
+    else:
+        print(f"  - {config.num_playlists} MP3-Dateien")
+        print(f"  - {config.num_playlists} MP4-Videos")
+        print(f"  - chapters.txt für YouTube")
     print()
 
 
@@ -484,6 +591,11 @@ def main() -> None:
     # Phase 3: Excel einlesen
     songs = phase_parse_excel(config)
 
+    # Halftime-Modus: Anzahl Playlists = Anzahl Songs
+    if config.halftime_mode:
+        config.num_playlists = len(songs)
+        print(f"→ Halftime: {config.num_playlists} Playlists (1 Song pro Playlist)")
+
     # Phase 4: URLs validieren und Songs herunterladen
     valid_songs, invalid_results = phase_validate_and_download(songs, config)
 
@@ -491,17 +603,23 @@ def main() -> None:
     if invalid_results:
         phase_handle_errors(invalid_results, config)
 
-    # Phase 5: Songs auf Playlists verteilen
-    playlists = phase_distribute_songs(valid_songs, config)
+    # Unterschiedlicher Workflow je nach Export-Modus
+    if config.export_individual:
+        # Einzelexport: Jeden Song einzeln exportieren
+        phase_export_individual_songs(valid_songs, config)
+    else:
+        # Playlist-Export: Songs verteilen und zusammenfügen
+        # Phase 5: Songs auf Playlists verteilen
+        playlists = phase_distribute_songs(valid_songs, config)
 
-    # Phase 6: Audio zusammenfügen und exportieren
-    all_chapters = phase_build_playlists(playlists, valid_songs, config)
+        # Phase 6: Audio zusammenfügen und exportieren
+        all_chapters = phase_build_playlists(playlists, valid_songs, config)
 
-    # Phase 7: Chapters-Datei erstellen
-    phase_export_chapters(all_chapters, config)
+        # Phase 7: Chapters-Datei erstellen
+        phase_export_chapters(all_chapters, config)
 
     # Zusammenfassung
-    print_summary(config)
+    print_summary(config, len(valid_songs) if config.export_individual else None)
 
 
 if __name__ == "__main__":

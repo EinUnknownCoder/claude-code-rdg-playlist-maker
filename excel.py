@@ -112,8 +112,8 @@ def read_excel(filepath: str) -> list[Song]:
         start_seconds = start_min * 60 + start_sec
         end_seconds = end_min * 60 + end_sec
 
-        # Überspringe Zeilen ohne gültige URL (muss mit http beginnen)
-        if not youtube_url or not youtube_url.startswith("http"):
+        # Überspringe Zeilen ohne gültige Quelle (URL oder lokaler Dateipfad)
+        if not youtube_url:
             continue
 
         song = Song(

@@ -19,6 +19,34 @@ def is_downloaded(song: Song, downloads_dir: str = "downloads") -> bool:
     return os.path.exists(get_download_path(song, downloads_dir))
 
 
+def is_local_file(song: Song) -> bool:
+    """Prüft ob Song eine lokale Datei ist (kein YouTube-Link)."""
+    return not song.youtube_url.startswith("http")
+
+
+def get_source_path(song: Song, downloads_dir: str = "downloads") -> str:
+    """
+    Gibt den Pfad zur Audio-Datei zurück.
+
+    Für lokale Dateien: Gibt den (aufgelösten) Pfad zurück.
+    Für YouTube URLs: Gibt den Download-Cache-Pfad zurück.
+
+    Raises:
+        FileNotFoundError: Wenn lokale Datei nicht gefunden wird.
+    """
+    if is_local_file(song):
+        local_path = song.youtube_url
+        # Relativen Pfad auflösen
+        if not os.path.isabs(local_path):
+            local_path = os.path.abspath(local_path)
+        if os.path.exists(local_path):
+            return local_path
+        raise FileNotFoundError(f"Lokale Datei nicht gefunden: {song.youtube_url}")
+
+    # YouTube URL → Download-Cache
+    return get_download_path(song, downloads_dir)
+
+
 def download_song(song: Song, downloads_dir: str = "downloads", progress_callback=None, browser: str | None = None) -> str:
     """
     Lädt einen Song von YouTube herunter.
