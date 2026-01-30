@@ -2,6 +2,7 @@
 
 import os
 import sys
+from datetime import datetime
 from typing import Optional
 
 from tqdm import tqdm
@@ -68,10 +69,8 @@ def get_output_folder_with_versioning(base_dir: str = "output") -> str:
             print()
 
     # Projekt-Name abfragen
-    project_name = input("Projekt-Name (z.B. '2601 Pforzheim'): ").strip()
-    if not project_name:
-        print("FEHLER: Projekt-Name darf nicht leer sein!")
-        sys.exit(1)
+    default_project = datetime.now().strftime("%y%m") + " Stuttgart"
+    project_name = get_input_with_default("Projekt-Name", default_project)
 
     # Finde höchste existierende Version
     pattern = re.compile(rf'^{re.escape(project_name)} Version (\d+)$')
@@ -421,13 +420,14 @@ def phase_build_playlists(
             )
 
         # MP3 exportieren
-        mp3_path = os.path.join(config.output_dir, f"playlist_{playlist_num}.mp3")
+        folder_name = os.path.basename(config.output_dir)
+        mp3_path = os.path.join(config.output_dir, f"{folder_name} Playlist {playlist_num}.mp3")
         print(f"  MP3 exportieren...", end=" ", flush=True)
         export_audio(audio, mp3_path)
         print("OK")
 
         # Video erstellen
-        mp4_path = os.path.join(config.output_dir, f"playlist_{playlist_num}.mp4")
+        mp4_path = os.path.join(config.output_dir, f"{folder_name} Playlist {playlist_num}.mp4")
         print(f"  Video erstellen...", end=" ", flush=True)
         create_video(mp3_path, config.image_path, mp4_path)
         print("OK")
