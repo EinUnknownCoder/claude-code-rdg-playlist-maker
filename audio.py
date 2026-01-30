@@ -224,8 +224,9 @@ def export_individual_songs(
         )
 
         # Nummerierter Dateiname: "01 - Artist - Title.mp3"
-        safe_artist = song.artist.replace("/", "-").replace("\\", "-").replace(":", "-")
-        safe_title = song.title.replace("/", "-").replace("\\", "-").replace(":", "-")
+        # Entferne alle Windows-ungültigen Zeichen: / \ : ? * " < > |
+        safe_artist = song.artist.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+        safe_title = song.title.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
         output_filename = f"{i:02d} - {safe_artist} - {safe_title}.mp3"
         output_path = os.path.join(output_dir, output_filename)
 

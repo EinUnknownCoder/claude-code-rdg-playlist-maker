@@ -9,7 +9,7 @@ from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
 from validate import validate_url, format_validation_errors, ValidationResult
 from download import download_song, is_downloaded, get_download_path, is_local_file, get_source_path
-from audio import build_playlist_audio, export_audio, generate_chapters_text, export_individual_songs
+from audio import build_playlist_audio, export_audio, generate_chapters_text, cut_song, FADE_IN_MS, FADE_OUT_MS
 from video import create_video, check_ffmpeg
 from distribute import distribute_with_explicit_assignments, move_song_to_last
 from config import PlaylistConfig
@@ -48,6 +48,31 @@ def get_int_with_default(prompt: str, default: int) -> int:
             return int(user_input)
         except ValueError:
             print("Bitte eine Zahl eingeben.")
+
+
+def get_available_covers(assets_dir: str = "assets") -> list[str]:
+    """Gibt Liste der verfügbaren Cover-Bilder zurück."""
+    cover_dir = os.path.join(assets_dir, "cover")
+    if not os.path.exists(cover_dir):
+        return [DEFAULT_COVER]
+    covers = [f for f in os.listdir(cover_dir)
+              if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    return sorted(covers)
+
+
+def parse_cover_selection(input_str: str, available: list[str], default: str) -> str:
+    """Parst die Cover-Auswahl (Nummer oder Dateiname)."""
+    input_str = input_str.strip()
+    # Nummer eingegeben?
+    if input_str.isdigit():
+        idx = int(input_str) - 1
+        if 0 <= idx < len(available):
+            return available[idx]
+    # Dateiname eingegeben?
+    if input_str in available:
+        return input_str
+    # Default
+    return default
 
 
 def get_output_folder_with_versioning(base_dir: str = "output") -> str:
@@ -186,6 +211,38 @@ def phase_gather_inputs() -> PlaylistConfig:
     output_dir = get_output_folder_with_versioning(output_base)
     assets_dir = get_input_with_default("Assets-Ordner", DEFAULT_ASSETS_DIR)
 
+    # Cover-Bild auswählen
+    available_covers = get_available_covers(assets_dir)
+    print("\nVerfügbare Cover-Bilder:")
+    for i, cover in enumerate(available_covers, 1):
+        print(f"  {i}. {cover}")
+
+    # Smart Default basierend auf Projektname
+    # Extrahiere Projektname aus output_dir (z.B. "output/2601 Stuttgart Version 1" -> "2601 Stuttgart")
+    import re
+    folder_name = os.path.basename(output_dir)
+    project_name = re.sub(r' Version \d+$', '', folder_name).lower()
+
+    if "stuttgart" in project_name or halftime_mode:
+        default_cover = "RDGStuttgart.png"
+    elif "pforzheim" in project_name:
+        default_cover = "PforzheimRPD.jpg"
+    elif "goeppingen" in project_name or "göppingen" in project_name:
+        default_cover = "ARDGGoeppingen.jpg"
+    else:
+        default_cover = DEFAULT_COVER
+
+    # Falls Default nicht in verfügbaren Covers, nehme erstes
+    if default_cover not in available_covers and available_covers:
+        default_cover = available_covers[0]
+
+    cover_input = get_input_with_default(
+        f"Cover-Bild (1-{len(available_covers)} oder Dateiname)",
+        default_cover
+    )
+    selected_cover = parse_cover_selection(cover_input, available_covers, default_cover)
+    print(f"✓ Cover: {selected_cover}")
+
     # URL-Validierung überspringen?
     skip_validation_input = get_input_with_default(
         "URL-Validierung überspringen? (J/N)", "N"
@@ -242,7 +299,8 @@ def phase_gather_inputs() -> PlaylistConfig:
         skip_validation=skip_validation,
         use_fade=use_fade,
         export_individual=export_individual,
-        halftime_mode=halftime_mode
+        halftime_mode=halftime_mode,
+        cover_image=selected_cover
     )
 
 
@@ -532,7 +590,7 @@ def phase_export_individual_songs(
     config: PlaylistConfig
 ) -> None:
     """
-    Phase 6 (Alternative): Exportiert jeden Song einzeln.
+    Phase 6 (Alternative): Exportiert jeden Song einzeln als MP3 und MP4.
 
     Wird verwendet wenn export_individual=True.
     """
@@ -548,15 +606,37 @@ def phase_export_individual_songs(
             song_paths[song.filename] = get_download_path(song)
 
     print("\n" + "-" * 50)
-    print("Exportiere Songs einzeln...\n")
+    print("Exportiere Songs einzeln (MP3 + MP4)...\n")
 
-    # Einzelexport (keine Einlauf-/Auslaufzeit, optionales Fade)
-    export_individual_songs(
-        valid_songs, song_paths, config.output_dir,
-        lead_in_seconds=0,
-        lead_out_seconds=0,
-        use_fade=config.use_fade
-    )
+    for i, song in enumerate(valid_songs, 1):
+        audio_path = song_paths.get(song.filename)
+        if not audio_path or not os.path.exists(audio_path):
+            print(f"  ⚠ Datei nicht gefunden: {song.filename}")
+            continue
+
+        # Song schneiden (keine Einlauf-/Auslaufzeit, optionales Fade)
+        cut_audio = cut_song(
+            song, audio_path,
+            lead_in=0, lead_out=0,
+            fade_in_ms=FADE_IN_MS if config.use_fade else 0,
+            fade_out_ms=FADE_OUT_MS if config.use_fade else 0
+        )
+
+        # Sicherer Dateiname (Windows-kompatibel)
+        safe_artist = song.artist.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+        safe_title = song.title.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+        safe_dancer = song.dancer_name.replace("/", "-").replace("\\", "-").replace(":", "-").replace("?", "").replace("*", "").replace('"', "").replace("<", "").replace(">", "").replace("|", "")
+        base_filename = f"{i:02d} - {safe_artist} - {safe_title} ({safe_dancer})"
+
+        # MP3 exportieren
+        mp3_path = os.path.join(config.output_dir, f"{base_filename}.mp3")
+        export_audio(cut_audio, mp3_path)
+        print(f"  ✓ {base_filename}.mp3")
+
+        # MP4 Video erstellen
+        mp4_path = os.path.join(config.output_dir, f"{base_filename}.mp4")
+        create_video(mp3_path, config.image_path, mp4_path)
+        print(f"  ✓ {base_filename}.mp4")
 
 
 def print_summary(config: PlaylistConfig, num_songs: int = None) -> None:
@@ -567,6 +647,7 @@ def print_summary(config: PlaylistConfig, num_songs: int = None) -> None:
     print(f"\nOutput-Ordner: {config.output_dir}")
     if config.export_individual:
         print(f"  - {num_songs} einzelne MP3-Dateien")
+        print(f"  - {num_songs} einzelne MP4-Videos")
     else:
         print(f"  - {config.num_playlists} MP3-Dateien")
         print(f"  - {config.num_playlists} MP4-Videos")

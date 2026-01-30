@@ -53,7 +53,7 @@ class PlaylistConfig:
         """
         errors = []
 
-        if self.num_playlists < 1:
+        if self.num_playlists < 1 and not self.halftime_mode:
             errors.append("Anzahl Playlists muss mindestens 1 sein")
 
         if self.lead_in_seconds < 0:
