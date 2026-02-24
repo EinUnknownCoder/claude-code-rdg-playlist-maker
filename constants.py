@@ -82,3 +82,4 @@ DOWNLOAD_USER_AGENT = (
 # Video-Export
 # ==============================================
 VIDEO_AUDIO_BITRATE = "192k"  # AAC Audio-Bitrate für MP4
+VIDEO_MAX_HEIGHT = 480  # Maximale Höhe für exportierte Videos in Pixel

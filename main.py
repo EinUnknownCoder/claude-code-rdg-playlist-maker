@@ -560,7 +560,7 @@ def phase_build_playlists(
         # Video erstellen
         mp4_path = os.path.join(config.output_dir, f"{base_filename}.mp4")
         print(f"  Video erstellen...", end=" ", flush=True)
-        create_video(mp3_path, config.image_path, mp4_path)
+        create_video(mp3_path, config.image_path, mp4_path, chapters=chapters)
         print("OK")
 
         print()
@@ -647,7 +647,14 @@ def phase_export_individual_songs(
 
         # MP4 Video erstellen
         mp4_path = os.path.join(config.output_dir, f"{base_filename}.mp4")
-        create_video(mp3_path, config.image_path, mp4_path)
+        single_chapter = [{
+            'timestamp_ms': 0,
+            'artist': song.artist,
+            'title': song.title,
+            'description': song.description,
+            'dancer': song.dancer_name
+        }]
+        create_video(mp3_path, config.image_path, mp4_path, chapters=single_chapter)
         print(f"  ✓ {base_filename}.mp4")
 
 
