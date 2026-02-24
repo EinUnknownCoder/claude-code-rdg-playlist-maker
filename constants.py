@@ -47,7 +47,7 @@ DEFAULT_LEAD_OUT = 2  # Sekunden nach End-Timestamp
 DEFAULT_DISTRIBUTION_MODE = 3  # 1=Fair, 2=Sequential, 3=Duration
 DEFAULT_OUTPUT_DIR = "output"
 DEFAULT_ASSETS_DIR = "assets"
-DEFAULT_BROWSER = "safari"
+DEFAULT_BROWSER = "chromium"
 DEFAULT_COVER = "RDGStuttgart.png"  # Cover-Bild für Video-Export
 
 # ==============================================
