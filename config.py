@@ -28,6 +28,7 @@ class PlaylistConfig:
     use_fade: bool = DEFAULT_USE_FADE
     export_individual: bool = DEFAULT_EXPORT_INDIVIDUAL
     halftime_mode: bool = DEFAULT_HALFTIME_MODE
+    from_file: bool = False
 
     @property
     def three_mp3_path(self) -> str:

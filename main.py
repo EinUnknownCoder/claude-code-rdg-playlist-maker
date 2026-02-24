@@ -2,8 +2,11 @@
 
 import os
 import sys
+import tomllib
 from datetime import datetime
 from typing import Optional
+
+CONFIG_FILE = "config.toml"
 
 from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
@@ -76,28 +79,33 @@ def parse_cover_selection(input_str: str, available: list[str], default: str) ->
     return default
 
 
-def get_output_folder_with_versioning(base_dir: str = "output") -> str:
+def get_output_folder_with_versioning(base_dir: str = "output", project_name: str = None) -> str:
     """
     Fragt nach Projekt-Name und erstellt versionierten Ordner.
+
+    Args:
+        base_dir: Basis-Output-Ordner
+        project_name: Wenn angegeben, wird interaktive Abfrage übersprungen
 
     Returns:
         Vollständiger Pfad zum Output-Ordner (z.B. "output/2601 Pforzheim Version 3")
     """
     import re
 
-    # Zeige bestehende Ordner
-    if os.path.exists(base_dir):
-        existing = sorted([d for d in os.listdir(base_dir)
-                          if os.path.isdir(os.path.join(base_dir, d))])
-        if existing:
-            print(f"\nBestehende Ordner in {base_dir}/:")
-            for folder in existing:
-                print(f"  - {folder}")
-            print()
+    if project_name is None:
+        # Zeige bestehende Ordner (nur im interaktiven Modus)
+        if os.path.exists(base_dir):
+            existing = sorted([d for d in os.listdir(base_dir)
+                              if os.path.isdir(os.path.join(base_dir, d))])
+            if existing:
+                print(f"\nBestehende Ordner in {base_dir}/:")
+                for folder in existing:
+                    print(f"  - {folder}")
+                print()
 
-    # Projekt-Name abfragen
-    default_project = datetime.now().strftime("%y%m") + " Stuttgart"
-    project_name = get_input_with_default("Projekt-Name", default_project)
+        # Projekt-Name abfragen
+        default_project = datetime.now().strftime("%y%m") + " Stuttgart"
+        project_name = get_input_with_default("Projekt-Name", default_project)
 
     # Finde höchste existierende Version
     pattern = re.compile(rf'^{re.escape(project_name)} Version (\d+)$')
@@ -169,6 +177,91 @@ def select_last_songs(playlists: list[list[Song]]) -> list[list[Song]]:
 
 
 # ==============================================
+# Config-Datei Loader
+# ==============================================
+
+def _load_config_from_file(config_path: str) -> PlaylistConfig:
+    """
+    Lädt Konfiguration aus einer TOML-Datei.
+
+    Args:
+        config_path: Pfad zur TOML-Datei
+
+    Returns:
+        PlaylistConfig mit allen Einstellungen, from_file=True
+    """
+    print(f"Konfigurationsdatei gefunden: {config_path}")
+    print("Überspringe interaktive Eingaben.\n")
+
+    with open(config_path, "rb") as f:
+        raw = tomllib.load(f)
+
+    excel_path = raw.get("excel_path", DEFAULT_EXCEL)
+    project_name = raw.get("project_name", datetime.now().strftime("%y%m") + " Stuttgart")
+    halftime_mode = raw.get("halftime_mode", DEFAULT_HALFTIME_MODE)
+    output_base = raw.get("output_dir", DEFAULT_OUTPUT_DIR)
+    assets_dir = raw.get("assets_dir", DEFAULT_ASSETS_DIR)
+    cover_image = raw.get("cover_image", DEFAULT_COVER)
+    skip_validation = raw.get("skip_validation", False)
+    export_individual = raw.get("export_individual", DEFAULT_EXPORT_INDIVIDUAL)
+    lead_in_seconds = raw.get("lead_in_seconds", DEFAULT_LEAD_IN)
+    lead_out_seconds = raw.get("lead_out_seconds", DEFAULT_LEAD_OUT)
+    browser_raw = raw.get("browser", DEFAULT_BROWSER)
+
+    if halftime_mode:
+        num_playlists = 0
+        distribution_mode = 2
+        use_fade = False
+    else:
+        num_playlists = raw.get("num_playlists", DEFAULT_PLAYLISTS)
+        distribution_mode = raw.get("distribution_mode", DEFAULT_DISTRIBUTION_MODE)
+        use_fade = raw.get("use_fade", DEFAULT_USE_FADE)
+
+    # Output-Ordner mit Versionierung (nicht-interaktiv)
+    output_dir = get_output_folder_with_versioning(output_base, project_name)
+
+    # Browser: leerer String oder unbekannter Wert → None (keine Cookies)
+    valid_browsers = ['safari', 'chrome', 'chromium', 'firefox', 'edge', 'opera', 'brave']
+    browser: Optional[str] = browser_raw if browser_raw in valid_browsers else None
+
+    # Konfiguration zur Bestätigung ausgeben
+    mode_names = {1: "Fair", 2: "Sequential", 3: "Duration"}
+    print("Konfiguration:")
+    print(f"  Excel:           {excel_path}")
+    print(f"  Projekt:         {project_name}")
+    if halftime_mode:
+        print(f"  Modus:           Halftime (1 Song/Playlist, Sequential, kein Fade)")
+    else:
+        print(f"  Playlists:       {num_playlists}")
+        print(f"  Verteilung:      {distribution_mode} ({mode_names.get(distribution_mode, '?')})")
+        print(f"  Fade:            {'Ja' if use_fade else 'Nein'}")
+    print(f"  Einlauf:         {lead_in_seconds}s")
+    print(f"  Auslauf:         {lead_out_seconds}s")
+    print(f"  Cover:           {cover_image}")
+    print(f"  Validierung:     {'Übersprungen' if skip_validation else 'Aktiv'}")
+    print(f"  Export:          {'Einzeln' if export_individual else 'Playlists'}")
+    print(f"  Browser:         {browser or 'Keine Cookies'}")
+    print()
+
+    return PlaylistConfig(
+        excel_path=excel_path,
+        num_playlists=num_playlists,
+        lead_in_seconds=lead_in_seconds,
+        lead_out_seconds=lead_out_seconds,
+        distribution_mode=distribution_mode,
+        output_dir=output_dir,
+        assets_dir=assets_dir,
+        browser=browser,
+        skip_validation=skip_validation,
+        use_fade=use_fade,
+        export_individual=export_individual,
+        halftime_mode=halftime_mode,
+        cover_image=cover_image,
+        from_file=True
+    )
+
+
+# ==============================================
 # Phasen-Funktionen
 # ==============================================
 
@@ -179,6 +272,9 @@ def phase_gather_inputs() -> PlaylistConfig:
     Returns:
         PlaylistConfig mit allen Einstellungen
     """
+    if os.path.exists(CONFIG_FILE):
+        return _load_config_from_file(CONFIG_FILE)
+
     print("Drücke Enter für Standardwerte:\n")
 
     excel_path = get_input_with_default("Excel-Datei", DEFAULT_EXCEL)
@@ -484,8 +580,8 @@ def phase_distribute_songs(
         duration_min = duration_sec / 60
         print(f"Playlist {i}: {len(playlist)} Songs, ~{duration_min:.1f} min, {len(artists)} Artists")
 
-    # Letzten Song für jede Playlist auswählen (nur wenn nicht Halftime)
-    if not config.halftime_mode:
+    # Letzten Song für jede Playlist auswählen (nur wenn nicht Halftime und nicht Config-Datei)
+    if not config.halftime_mode and not config.from_file:
         playlists = select_last_songs(playlists)
 
     return playlists
