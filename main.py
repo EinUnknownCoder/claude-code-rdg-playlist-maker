@@ -11,7 +11,7 @@ CONFIG_FILE = "config.toml"
 from tqdm import tqdm
 from excel import read_excel, validate_timestamps, Song
 from validate import validate_url, format_validation_errors, ValidationResult
-from download import download_song, is_downloaded, get_download_path, is_local_file, get_source_path
+from download import download_song, is_downloaded, get_download_path, is_local_file, get_source_path, archive_downloads, is_in_archive, restore_from_archive
 from pydub import AudioSegment
 from audio import build_playlist_audio, export_audio, generate_chapters_text, cut_song, get_cached_audio, FADE_IN_MS, FADE_OUT_MS
 from video import create_video, check_ffmpeg
@@ -21,7 +21,7 @@ from constants import (
     DEFAULT_EXCEL, DEFAULT_PLAYLISTS, DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT,
     DEFAULT_DISTRIBUTION_MODE, DEFAULT_OUTPUT_DIR, DEFAULT_ASSETS_DIR,
     DEFAULT_BROWSER, DEFAULT_COVER, DEFAULT_USE_FADE, DEFAULT_EXPORT_INDIVIDUAL,
-    DEFAULT_HALFTIME_MODE
+    DEFAULT_HALFTIME_MODE, DEFAULT_ARCHIVE_DIR
 )
 
 
@@ -203,6 +203,7 @@ def _load_config_from_file(config_path: str) -> PlaylistConfig:
     assets_dir = raw.get("assets_dir", DEFAULT_ASSETS_DIR)
     cover_image = raw.get("cover_image", DEFAULT_COVER)
     skip_validation = raw.get("skip_validation", False)
+    use_archive = raw.get("use_archive", False)
     export_individual = raw.get("export_individual", DEFAULT_EXPORT_INDIVIDUAL)
     lead_in_seconds = raw.get("lead_in_seconds", DEFAULT_LEAD_IN)
     lead_out_seconds = raw.get("lead_out_seconds", DEFAULT_LEAD_OUT)
@@ -239,6 +240,7 @@ def _load_config_from_file(config_path: str) -> PlaylistConfig:
     print(f"  Auslauf:         {lead_out_seconds}s")
     print(f"  Cover:           {cover_image}")
     print(f"  Validierung:     {'Übersprungen' if skip_validation else 'Aktiv'}")
+    print(f"  Archiv:          {'Aktiv' if use_archive else 'Inaktiv'}")
     print(f"  Export:          {'Einzeln' if export_individual else 'Playlists'}")
     print(f"  Browser:         {browser or 'Keine Cookies'}")
     print()
@@ -253,6 +255,7 @@ def _load_config_from_file(config_path: str) -> PlaylistConfig:
         assets_dir=assets_dir,
         browser=browser,
         skip_validation=skip_validation,
+        use_archive=use_archive,
         use_fade=use_fade,
         export_individual=export_individual,
         halftime_mode=halftime_mode,
@@ -349,6 +352,15 @@ def phase_gather_inputs() -> PlaylistConfig:
     if skip_validation:
         print("⚠ URL-Validierung wird übersprungen - nur Download-Check")
 
+    # Archiv als Quelle verwenden?
+    use_archive_input = get_input_with_default(
+        "Archiv verwenden? (J/N)", "N"
+    ).strip().upper()
+    use_archive = use_archive_input == "J"
+
+    if use_archive:
+        print("→ Fehlende Songs werden aus archive/ kopiert statt von YouTube geladen")
+
     # Export-Modus (Playlists oder Einzelne Songs)
     export_mode_input = get_input_with_default(
         "Export-Modus: P=Playlists, E=Einzelne Songs", "P" if not DEFAULT_EXPORT_INDIVIDUAL else "E"
@@ -394,6 +406,7 @@ def phase_gather_inputs() -> PlaylistConfig:
         assets_dir=assets_dir,
         browser=browser,
         skip_validation=skip_validation,
+        use_archive=use_archive,
         use_fade=use_fade,
         export_individual=export_individual,
         halftime_mode=halftime_mode,
@@ -487,6 +500,13 @@ def phase_validate_and_download(
         # YouTube URL: ZUERST prüfen ob bereits vorhanden
         if is_downloaded(song):
             print(f"  ✓ Bereits vorhanden")
+            valid_songs.append(song)
+            continue
+
+        # Archiv prüfen (wenn use_archive=True)
+        if config.use_archive and is_in_archive(song, config.archive_dir):
+            print(f"  ✓ Im Archiv gefunden – wiederherstellen")
+            restore_from_archive(song, config.archive_dir)
             valid_songs.append(song)
             continue
 
@@ -813,6 +833,11 @@ def main() -> None:
 
         # Phase 7: Chapters-Datei erstellen
         phase_export_chapters(all_chapters, config)
+
+    # Downloads nach archive/ verschieben
+    archived = archive_downloads(archive_dir=config.archive_dir)
+    if archived > 0:
+        print(f"\n{archived} Song(s) nach {config.archive_dir}/ archiviert")
 
     # Zusammenfassung
     print_summary(config, len(valid_songs) if config.export_individual else None)

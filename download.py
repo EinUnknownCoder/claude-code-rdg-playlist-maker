@@ -1,6 +1,7 @@
 """YouTube-Download Modul für RDG Playlist Maker."""
 
 import os
+import shutil
 import yt_dlp
 from excel import Song
 from constants import (
@@ -45,6 +46,43 @@ def get_source_path(song: Song, downloads_dir: str = "downloads") -> str:
 
     # YouTube URL → Download-Cache
     return get_download_path(song, downloads_dir)
+
+
+def get_archive_path(song: Song, archive_dir: str = "archive") -> str:
+    """Gibt den Archiv-Pfad für einen Song zurück."""
+    return os.path.join(archive_dir, song.filename)
+
+
+def is_in_archive(song: Song, archive_dir: str = "archive") -> bool:
+    """Prüft ob der Song im Archiv vorhanden ist."""
+    return os.path.exists(get_archive_path(song, archive_dir))
+
+
+def restore_from_archive(song: Song, archive_dir: str = "archive", downloads_dir: str = "downloads") -> None:
+    """Kopiert einen Song aus dem Archiv in den Downloads-Ordner."""
+    os.makedirs(downloads_dir, exist_ok=True)
+    shutil.copy2(get_archive_path(song, archive_dir), get_download_path(song, downloads_dir))
+
+
+def archive_downloads(downloads_dir: str = "downloads", archive_dir: str = "archive") -> int:
+    """
+    Verschiebt alle MP3s aus downloads/ nach archive/.
+
+    Returns:
+        Anzahl archivierter Dateien
+    """
+    if not os.path.exists(downloads_dir):
+        return 0
+    os.makedirs(archive_dir, exist_ok=True)
+    count = 0
+    for filename in os.listdir(downloads_dir):
+        if filename.endswith(".mp3"):
+            shutil.move(
+                os.path.join(downloads_dir, filename),
+                os.path.join(archive_dir, filename)
+            )
+            count += 1
+    return count
 
 
 def download_song(song: Song, downloads_dir: str = "downloads", progress_callback=None, browser: str | None = None) -> str:

@@ -7,7 +7,7 @@ from constants import (
     DEFAULT_EXCEL, DEFAULT_PLAYLISTS, DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT,
     DEFAULT_DISTRIBUTION_MODE, DEFAULT_OUTPUT_DIR, DEFAULT_ASSETS_DIR,
     DEFAULT_BROWSER, DEFAULT_COVER, DEFAULT_USE_FADE, DEFAULT_EXPORT_INDIVIDUAL,
-    DEFAULT_HALFTIME_MODE
+    DEFAULT_HALFTIME_MODE, DEFAULT_ARCHIVE_DIR
 )
 
 
@@ -28,6 +28,8 @@ class PlaylistConfig:
     use_fade: bool = DEFAULT_USE_FADE
     export_individual: bool = DEFAULT_EXPORT_INDIVIDUAL
     halftime_mode: bool = DEFAULT_HALFTIME_MODE
+    use_archive: bool = False
+    archive_dir: str = DEFAULT_ARCHIVE_DIR
     from_file: bool = False
 
     @property
