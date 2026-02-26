@@ -1,6 +1,10 @@
-# Downloads und Output (große Dateien, generiert)
+# Downloads, Output und Archiv (große Dateien, generiert)
 downloads/
 output/
+archive/
+
+# Konfiguration (persönliche Einstellungen)
+config.toml
 
 # Excel-Dateien (persönliche Daten)
 *.xlsx

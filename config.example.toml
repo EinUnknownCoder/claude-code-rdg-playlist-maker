@@ -1,0 +1,23 @@
+# RDG Playlist Maker – Konfigurationsdatei
+# Kopiere diese Datei als "config.toml" und passe die Werte an.
+# Wenn config.toml vorhanden ist, werden alle interaktiven Eingaben übersprungen.
+
+excel_path = "request.xlsx"
+project_name = "2601 Pforzheim"        # Wird für Output-Ordnernamen verwendet
+halftime_mode = false
+
+num_playlists = 4
+distribution_mode = 3                   # 1=Fair (Artist-balanciert), 2=Sequential, 3=Duration
+
+lead_in_seconds = 8
+lead_out_seconds = 2
+
+output_dir = "output"
+assets_dir = "assets"
+cover_image = "PforzheimRPD.jpg"        # Dateiname aus assets/cover/
+
+skip_validation = false
+export_individual = false               # false=Playlists, true=Einzelne Songs
+use_fade = true
+browser = ""                            # safari/chrome/firefox/edge/opera/brave/chromium oder "" für keine Cookies
+use_archive = false                     # true = Archiv als Quelle nutzen statt YouTube
